@@ -257,10 +257,9 @@ private lemma naivePatternSearchFrom_time_complexity_upper_bound [BEq α]
               pure (i + (t :: ts).length) := by
         rfl
       by_cases hlen : (p :: ps).length ≤ (t :: ts).length
-      · have hpre' := prefixMatch_time_complexity_upper_bound (p :: ps) (t :: ts)
-        have hpre :
-            (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost ≤ (p :: ps).length := by
-          exact hpre'.trans (Nat.min_le_left _ _)
+      · have hpre :
+            (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost ≤ (p :: ps).length :=
+          (prefixMatch_time_complexity_upper_bound (p :: ps) (t :: ts)).trans (Nat.min_le_left _ _)
         have hlen' : ps.length ≤ ts.length := by simpa using hlen
         cases heval : (prefixMatch (p :: ps) (t :: ts)).eval Comparison.natCost with
         | false =>
@@ -287,8 +286,8 @@ private lemma naivePatternSearchFrom_time_complexity_upper_bound [BEq α]
               rw [hsub]
               simp
             have hmul : (p :: ps).length ≤
-                (p :: ps).length * ((t :: ts).length + 1 - (p :: ps).length) := by
-              exact (Nat.le_mul_of_pos_right _ hone)
+                (p :: ps).length * ((t :: ts).length + 1 - (p :: ps).length) :=
+              Nat.le_mul_of_pos_right _ hone
             rw [hdef]
             simpa [hlen', heval] using hpre.trans hmul
       · have hlen' : ¬ ps.length ≤ ts.length := by simpa using hlen
