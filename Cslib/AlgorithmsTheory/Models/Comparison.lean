@@ -22,7 +22,7 @@ In this file we define a query type `Comparison` for comparison based algorithms
 
 - `Comparison`: A query type for comparison based algorithms.
 - `Comparison.natCost`:  A model for this query with costs in `ℕ`.
-- `PatternSearch`: First-occurance pattern searching definition.
+- `PatternSearchAll`: All-match pattern searching definition.
 
 -/
 
@@ -49,17 +49,18 @@ def Comparison.natCost [BEq α] : Model (Comparison α) ℕ where
   cost _ := 1
 
 /--
-`PatternSearch pat txt` returns the first starting position in `txt` such that
-`pat` is a prefix of `txt` starting there. For nonempty `pat`, failure returns
-`txt.length`. For empty `pat`, the result is always `0`.
+`PatternSearchAll pat txt` returns all starting positions in `txt` such that
+`pat` is a prefix of `txt` starting there, in increasing order.
+
+For the empty pattern, this returns every position inside the text
+`0, 1, ..., txt.length - 1`.
 
 TODO: move definition
 -/
-def PatternSearch [BEq α] (pat txt : List α) : Nat :=
-  if pat = [] then
-    0
-  else
-    (txt.tails.dropLast).findIdx fun suffix => pat.isPrefixOf suffix
+def PatternSearchAll [BEq α] (pat txt : List α) : List Nat :=
+  (List.range txt.length).filter fun i => pat.isPrefixOf (txt.drop i)
+
+-- #eval PatternSearchAll [0] [1, 1, 1]
 
 end Algorithms
 
