@@ -16,8 +16,8 @@ public import Mathlib.Data.List.Infix
 
 In this file we define a query type `Comparison` for comparison based algorithms, whose sole query
 `compare` compares two arguments. It further defines a model `Comparison.natCost` for this query.
-
 --
+
 ## Definitions
 
 - `Comparison`: A query type for comparison based algorithms.

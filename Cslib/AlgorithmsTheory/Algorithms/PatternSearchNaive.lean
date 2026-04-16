@@ -16,11 +16,20 @@ public import Mathlib.Algebra.Order.Group.Nat
 # Naive pattern search
 
 In this file we define naive pattern search in the `Comparison` query model.
+--
 
 ## Main definitions
 
 - `prefixMatch`: checks whether a pattern is a prefix of some text.
 - `naivePatternSearch`: returns the first start index of a contiguous match.
+
+## Main results
+
+- `prefixMatch_eval`: `prefixMatch` evaluates identically to List.isPrefixOf.
+- `naivePatternSearch_eval`: `naivePatternSearch` evaluates identically to `PatternSearch`.
+- `prefixMatch_time_complexity_upper_bound`: `prefixMatch` takes at most `pat.length` comparisons.
+- `naivePatternSearch_time_complexity_upper_bound`: `naivePatternSearch` takes at most
+    `pat.length * txt.length` comparisons.
 -/
 
 namespace Cslib
@@ -117,7 +126,7 @@ end Correctness
 
 section TimeComplexity
 
-lemma prefixMatch_time_complexity_upper_bound [BEq α] (pat txt : List α) :
+theorem prefixMatch_time_complexity_upper_bound [BEq α] (pat txt : List α) :
     (prefixMatch pat txt).time Comparison.natCost ≤ pat.length := by
   induction pat generalizing txt with
   | nil => simp [prefixMatch]
@@ -129,7 +138,7 @@ lemma prefixMatch_time_complexity_upper_bound [BEq α] (pat txt : List α) :
       · simpa [prefixMatch, h, Nat.add_comm] using Nat.add_le_add_left (ih ts) 1
       · simp [prefixMatch, h]
 
-lemma naivePatternSearchFrom_time_complexity_upper_bound [BEq α]
+private lemma naivePatternSearchFrom_time_complexity_upper_bound [BEq α]
     (pat txt : List α) (i : Nat) :
     (naivePatternSearchFrom pat txt i).time Comparison.natCost ≤ pat.length * txt.length := by
   cases pat with
