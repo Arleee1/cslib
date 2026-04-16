@@ -363,7 +363,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       have hentryStep : Int.toNat (table[(Int.toNat cnd)]'hcndTable + 1) ≤ pos := by
         exact le_trans (htableStep (Int.toNat cnd) hcndTable) hcndLePos
       have hrec := ih (pos + 1) (cnd + 1) (table.set pos table[cnd.toNat]) hpos' hcndPat'
-        (by simp [List.length_set]; omega) (by rw [List.length_set, htableLen])
+        (by simp only [List.length_set]; omega) (by rw [List.length_set, htableLen])
         (table_set_bound htableBound (htableBound _ hcndTable) hposTable)
         (by omega) (by rw [int_toNat_add_one_eq (by omega), hcndSucc]; omega)
         (table_set_lower htableLower (htableLower _ hcndTable))
@@ -402,7 +402,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
           omega
         have hrec := ih (pos + 1) (inner.eval Comparison.natCost + 1)
           (table.set pos cnd) hpos_next hcndPat_rec
-          (by simp [List.length_set]; omega) (by rw [List.length_set, htableLen])
+          (by simp only [List.length_set]; omega) (by rw [List.length_set, htableLen])
           (table_set_bound htableBound hcndPat hposTable) hnextNonneg hnextStep
           (table_set_lower htableLower (by omega))
           (table_set_step htableStep hcndStep)
@@ -422,15 +422,42 @@ theorem buildLPS_time_complexity_upper_bound [BEq α]
     (pat : List α) :
     (buildLPS pat).time Comparison.natCost ≤
       3 * pat.length + 1 := by
-  rcases pat with (_ | ⟨x, _ | ⟨y, xs⟩⟩) <;> simp_all +decide [buildLPS]
-  have htime := LPSWhile_time_complexity_upper_bound (x :: y :: xs).length 1 0
-    (x :: y :: xs) (-1 :: List.replicate (List.length (x :: y :: xs)) 0)
-    (by simp) (by simp) (by simp) (by simp)
-    (by intro i hi; cases i <;> simp)
-    (by omega) (by simp)
-    (by intro i hi; cases i <;> simp)
-    (by intro i hi; cases i <;> simp)
-  grind
+  cases pat with
+  | nil =>
+      simp [buildLPS]
+  | cons x xs =>
+      cases xs with
+      | nil =>
+          simp [buildLPS]
+      | cons y xs =>
+          let pat' := x :: y :: xs
+          let table0 : List Int := -1 :: List.replicate pat'.length 0
+          have htableBound :
+              ∀ (i : Nat) (hi : i < table0.length),
+              Int.toNat (table0[i]'hi) < pat'.length := by
+            intro i hi
+            cases i <;> simp [pat', table0]
+          have htableLower :
+              ∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi := by
+            intro i hi
+            cases i <;> simp [pat', table0]
+          have htableStep :
+              ∀ (i : Nat) (hi : i < table0.length),
+              Int.toNat (table0[i]'hi + 1) ≤ i := by
+            intro i hi
+            cases i <;> simp [pat', table0]
+          have htime :=
+            LPSWhile_time_complexity_upper_bound pat'.length 1 0 pat' table0
+              (by simp [pat'])
+              (by simp [pat'])
+              (by simp [pat', table0])
+              (by simp [pat', table0])
+              htableBound
+              (by omega)
+              (by simp)
+              htableLower
+              htableStep
+          simpa [buildLPS, pat', table0] using htime
 
 end TimeComplexity
 
