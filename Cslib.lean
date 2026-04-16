@@ -8,6 +8,7 @@ public import Cslib.AlgorithmsTheory.Algorithms.PatternSearchNaive
 public import Cslib.AlgorithmsTheory.Lean.MergeSort.MergeSort
 public import Cslib.AlgorithmsTheory.Lean.TimeM
 public import Cslib.AlgorithmsTheory.LowerBounds.ComparisonSort
+public import Cslib.AlgorithmsTheory.Models.Comparison
 public import Cslib.AlgorithmsTheory.Models.ListComparisonSearch
 public import Cslib.AlgorithmsTheory.Models.ListComparisonSort
 public import Cslib.AlgorithmsTheory.QueryModel
