@@ -8,6 +8,7 @@ module
 
 public import Cslib.AlgorithmsTheory.Models.Comparison
 public import Mathlib.Data.List.Infix
+public import Mathlib.Algebra.Order.Group.Nat
 
 @[expose] public section
 
@@ -140,6 +141,71 @@ theorem naivePatternSearch_eval [BEq α] (pat txt : List α) :
   simp
 
 end Correctness
+
+section TimeComplexity
+
+lemma prefixMatch_time_complexity_upper_bound [BEq α] (pat txt : List α) :
+    (prefixMatch pat txt).time Comparison.natCost ≤ pat.length := by
+  induction pat generalizing txt with
+  | nil =>
+      simp [prefixMatch]
+  | cons p ps ih =>
+      cases txt with
+      | nil =>
+          simp [prefixMatch]
+      | cons t ts =>
+          by_cases h : p == t
+          · have ih' := ih ts
+            simpa [prefixMatch, h, Nat.add_comm] using Nat.add_le_add_left ih' 1
+          · simp [prefixMatch, h]
+
+lemma naivePatternSearchFrom_time_complexity_upper_bound [BEq α]
+    (pat txt : List α) (i : Nat) :
+    (naivePatternSearchFrom pat txt i).time Comparison.natCost ≤ pat.length * txt.length := by
+  cases pat with
+  | nil =>
+      simp [naivePatternSearchFrom]
+  | cons p ps =>
+      induction txt generalizing i with
+      | nil =>
+          simp [naivePatternSearchFrom]
+      | cons t ts ih =>
+          have hprefix := prefixMatch_time_complexity_upper_bound (p :: ps) (t :: ts)
+          have ih' := ih (i + 1)
+          by_cases h : (prefixMatch (p :: ps) (t :: ts)).eval Comparison.natCost
+          · suffices
+              (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost
+                ≤ (p :: ps).length * (t :: ts).length by
+              simpa [naivePatternSearchFrom, h] using this
+            calc
+              (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost
+                  ≤ (p :: ps).length := hprefix
+              _ ≤ (p :: ps).length * (t :: ts).length := by
+                calc
+                  (p :: ps).length ≤ (p :: ps).length * 1 := by simp
+                  _ ≤ (p :: ps).length * (t :: ts).length := by
+                    exact Nat.mul_le_mul_left _ (by simp)
+          · suffices
+              (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost
+                  + (naivePatternSearchFrom (p :: ps) ts (i + 1)).time Comparison.natCost
+                ≤ (p :: ps).length * (t :: ts).length by
+              have hfalse : (prefixMatch (p :: ps) (t :: ts)).eval Comparison.natCost = false := by
+                cases h' : (prefixMatch (p :: ps) (t :: ts)).eval Comparison.natCost <;> simp_all
+              simpa [naivePatternSearchFrom, hfalse] using this
+            calc
+              (prefixMatch (p :: ps) (t :: ts)).time Comparison.natCost
+                  + (naivePatternSearchFrom (p :: ps) ts (i + 1)).time Comparison.natCost
+                  ≤ (p :: ps).length + ((p :: ps).length * ts.length) := by
+                    exact Nat.add_le_add hprefix ih'
+              _ = (p :: ps).length * (t :: ts).length := by
+                    simp [Nat.mul_succ, Nat.add_comm, Nat.add_assoc]
+
+theorem naivePatternSearch_time_complexity_upper_bound [BEq α] (pat txt : List α) :
+    (naivePatternSearch pat txt).time Comparison.natCost ≤ pat.length * txt.length := by
+  rw [naivePatternSearch]
+  simpa using naivePatternSearchFrom_time_complexity_upper_bound pat txt 0
+
+end TimeComplexity
 
 end Algorithms
 
