@@ -5,6 +5,7 @@ public import Cslib.AlgorithmsTheory.Algorithms.ListLinearSearch
 public import Cslib.AlgorithmsTheory.Algorithms.ListOrderedInsert
 public import Cslib.AlgorithmsTheory.Algorithms.MergeSort
 public import Cslib.AlgorithmsTheory.Algorithms.PatternSearchNaive
+public import Cslib.AlgorithmsTheory.Algorithms.PatternSearchKMP
 public import Cslib.AlgorithmsTheory.Lean.MergeSort.MergeSort
 public import Cslib.AlgorithmsTheory.Lean.TimeM
 public import Cslib.AlgorithmsTheory.LowerBounds.ComparisonSort
