@@ -334,15 +334,13 @@ private lemma innerLPSWhile_time_eval_upper_bound_from_table [BEq α]
           htableLen htableBound).eval Comparison.natCost + 1) ≤
       Int.toNat cnd + 1 := by
   let nextCnd := table[(Int.toNat cnd)]'hcndTable
-  have hnextPat : Int.toNat nextCnd < pat.length := by
-    exact htableBound (Int.toNat cnd) hcndTable
+  have hnextPat : Int.toNat nextCnd < pat.length := htableBound (Int.toNat cnd) hcndTable
   have hnextTable : Int.toNat nextCnd < table.length := by
     calc
       Int.toNat nextCnd < pat.length := hnextPat
       _ < pat.length + 1 := Nat.lt_succ_self _
       _ = table.length := htableLen.symm
-  have hnextLower : -1 ≤ nextCnd := by
-    exact htableLower (Int.toNat cnd) hcndTable
+  have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
   have hinner := innerLPSWhile_time_eval_upper_bound
     fuel pos nextCnd pat table
     hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower
@@ -433,8 +431,8 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       omega
     split_ifs with hcmp hpos' hcndPat'
     · -- cmp = true, pos + 1 < pat.length, nextCnd in range: recurse
-      have hentryStep : Int.toNat (table[(Int.toNat cnd)]'hcndTable + 1) ≤ pos := by
-        exact le_trans (htableStep (Int.toNat cnd) hcndTable) hcndLePos
+      have hentryStep : Int.toNat (table[(Int.toNat cnd)]'hcndTable + 1) ≤ pos :=
+        le_trans (htableStep (Int.toNat cnd) hcndTable) hcndLePos
       have hrec := ih (pos + 1) (cnd + 1) (table.set pos table[cnd.toNat]) hpos' hcndPat'
         (by simp only [List.length_set]; omega) (by rw [List.length_set, htableLen])
         (table_set_bound htableBound (htableBound _ hcndTable) hposTable)
@@ -450,15 +448,13 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       rename_i hpos_next
       rw [Prog.time_bind]
       let nextCnd := table[(Int.toNat cnd)]'hcndTable
-      have hnextPat : Int.toNat nextCnd < pat.length := by
-        exact htableBound (Int.toNat cnd) hcndTable
+      have hnextPat : Int.toNat nextCnd < pat.length := htableBound (Int.toNat cnd) hcndTable
       have hnextTable : Int.toNat nextCnd < table.length := by
         calc
           Int.toNat nextCnd < pat.length := hnextPat
           _ < pat.length + 1 := Nat.lt_succ_self _
           _ = table.length := htableLen.symm
-      have hnextLower : -1 ≤ nextCnd := by
-        exact htableLower (Int.toNat cnd) hcndTable
+      have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
       set inner : Prog (Comparison α) Int :=
         innerLPSWhile table.length pos nextCnd pat table
           hpos hnextPat hnextTable htableLen htableBound
@@ -493,15 +489,13 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
     · -- cmp = false, ¬(pos + 1 < pat.length)
       rw [Prog.time_bind, Prog.time_pure]
       let nextCnd := table[(Int.toNat cnd)]'hcndTable
-      have hnextPat : Int.toNat nextCnd < pat.length := by
-        exact htableBound (Int.toNat cnd) hcndTable
+      have hnextPat : Int.toNat nextCnd < pat.length := htableBound (Int.toNat cnd) hcndTable
       have hnextTable : Int.toNat nextCnd < table.length := by
         calc
           Int.toNat nextCnd < pat.length := hnextPat
           _ < pat.length + 1 := Nat.lt_succ_self _
           _ = table.length := htableLen.symm
-      have hnextLower : -1 ≤ nextCnd := by
-        exact htableLower (Int.toNat cnd) hcndTable
+      have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
       have hinner :
           (innerLPSWhile table.length pos nextCnd pat table
             hpos hnextPat hnextTable htableLen htableBound).time Comparison.natCost +
