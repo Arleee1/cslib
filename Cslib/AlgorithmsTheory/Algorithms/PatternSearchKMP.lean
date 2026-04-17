@@ -401,10 +401,8 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
         (table_set_lower htableLower (htableLower _ hcndTable))
         (table_set_step htableStep hentryStep)
       omega
-    · simp [Prog.time_pure]
-      omega
-    · simp [Prog.time_pure]
-      omega
+    · grind
+    · grind
     · -- cmp = false, pos + 1 < pat.length: inner loop + possible recurse
       rename_i hpos_next
       rw [Prog.time_bind]
@@ -457,8 +455,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
           (table_set_step htableStep hcndStep)
         omega
       · rw [Prog.time_pure]
-        simp
-        omega
+        grind
     · -- cmp = false, ¬(pos + 1 < pat.length)
       rw [Prog.time_bind, Prog.time_pure]
       let nextCnd := table[(Int.toNat cnd)]'hcndTable
@@ -493,7 +490,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
               hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).2
           omega
       simp [inner, nextCnd] at hinner ⊢
-      omega
+      grind
 
 theorem buildLPS_time_complexity_upper_bound [BEq α]
     (pat : List α) :
@@ -2572,7 +2569,7 @@ private lemma kmpSearchPositionsAux_time_linear_buildLPS [BEq α] [LawfulBEq α]
             rw [htime]
             have hresetLe : reset ≤ k' + 1 := by
               dsimp [reset]
-              omega
+              grind
             have hFallbackReset : fallback.time Comparison.natCost + reset ≤ k + 2 := by
               calc
                 fallback.time Comparison.natCost + reset ≤
