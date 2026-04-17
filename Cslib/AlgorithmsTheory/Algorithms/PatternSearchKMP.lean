@@ -2180,20 +2180,6 @@ private lemma frontierState_reset_buildLPS_nonempty [BEq α] [LawfulBEq α]
       exact hmaxR l hborderL
   simpa [hrEq] using hstateR
 
-private lemma take_eq_of_isPrefixOf_true [BEq α] [LawfulBEq α]
-    {pat s : List α} {n : Nat}
-    (hpre : pat.isPrefixOf s = true)
-    (hn : n ≤ pat.length) :
-    pat.take n = s.take n := by
-  have hpre' : pat <+: s := (List.isPrefixOf_iff_prefix).1 (by simp [hpre])
-  have htake : pat = s.take pat.length := (List.prefix_iff_eq_take).1 hpre'
-  calc
-    pat.take n = (s.take pat.length).take n := by
-      simpa using congrArg (fun l => l.take n) htake
-    _ = s.take n := by
-      rw [List.take_take]
-      simp [Nat.min_eq_left hn]
-
 private lemma kmpSearchFallback_eval_some_full_iff_match_start [BEq α] [LawfulBEq α]
       {pat pref ts : List α} {table : List Int} {k : Nat} {t : α}
       (hTableLen : table.length = pat.length + 1)
@@ -2268,8 +2254,15 @@ private lemma kmpSearchFallback_eval_some_full_iff_match_start [BEq α] [LawfulB
         omega
       have htake :
           pat.take pat.length =
-            ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length :=
-        take_eq_of_isPrefixOf_true hmatch (by simp)
+            ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length := by
+        have hpre' :
+            pat <+: ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) :=
+          (List.isPrefixOf_iff_prefix).1 (by simpa using hmatch)
+        have htakeEq :
+            pat =
+              ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length :=
+          (List.prefix_iff_eq_take).1 hpre'
+        simpa [List.take_take] using congrArg (fun l => l.take pat.length) htakeEq
       have hdrop :
           ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length =
             (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
