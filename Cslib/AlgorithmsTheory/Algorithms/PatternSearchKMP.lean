@@ -1907,7 +1907,7 @@ private lemma kmpSearchFallback_eval_some_candidate [BEq α] [LawfulBEq α]
               rw [← List.getElem?_eq_getElem hk, hpk]
             have hEq : pat[k]'hk = t := hkGet.trans (eq_of_beq hcmp)
             rw [List.getElem?_eq_getElem hk]
-            simpa [hEq]
+            simp [hEq]
             intro l hCandL _
             rcases hCandL with hEqL | hBorderL
             · cases hEqL
@@ -2163,23 +2163,6 @@ private lemma fallbackCandidate_le {pat : List α} {k l : Nat}
   · exact le_rfl
   · exact Nat.le_of_lt hBorder.1
 
-private lemma frontierState_candidate_eq {pat pref : List α} {k l : Nat}
-    (hstate : FrontierState pat pref k)
-    (hCand : FallbackCandidate pat k l) :
-    pat.take l = pref.drop (pref.length - l) := by
-  rcases hstate with ⟨hkPref, hEqK, _⟩
-  rcases hCand with rfl | hBorder
-  · exact hEqK
-  · rcases hBorder with ⟨hlk, hBorderEq⟩
-    calc
-      pat.take l = (pat.take k).drop (k - l) := hBorderEq
-      _ = (pref.drop (pref.length - k)).drop (k - l) := by simpa [hEqK]
-      _ = pref.drop ((pref.length - k) + (k - l)) := by rw [List.drop_drop]
-      _ = pref.drop (pref.length - l) := by
-        have hlk' : l ≤ k := Nat.le_of_lt hlk
-        have hcalc : (pref.length - k) + (k - l) = pref.length - l := by omega
-        simp [hcalc]
-
 private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
     (hl : l < pat.length) (hlPref : l ≤ pref.length) :
     pat.take (l + 1) = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) ↔
@@ -2193,9 +2176,7 @@ private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
           simp [List.take_concat_get' pat l hl]
         _ = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := hsuf
         _ = pref.drop (pref.length - l) ++ [t] := by
-          have hidx : (pref ++ [t]).length - (l + 1) = pref.length - l := by
-            simp
-          simp [hidx, List.drop_append, hlPref]
+          simp [List.drop_append]
     have hlenPat : (pat.take l).length = l := by
       simp [Nat.min_eq_left (Nat.le_of_lt hl)]
     have hlenPref : (pref.drop (pref.length - l)).length = l := by
@@ -2214,15 +2195,15 @@ private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
       rw [← List.getElem?_eq_getElem hl, hchar]
     calc
       pat.take (l + 1) = pat.take l ++ [pat[l]'hl] := by
-        simpa using (List.take_concat_get' pat l hl).symm
-      _ = pref.drop (pref.length - l) ++ [t] := by simpa [hsuf, hEq]
+        simp [List.take_concat_get' pat l hl]
+      _ = pref.drop (pref.length - l) ++ [t] := by simp [hsuf, hEq]
       _ = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := by
         have hidx : (pref ++ [t]).length - (l + 1) = pref.length - l := by
           simp
         have hdrop :
             (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) =
               pref.drop (pref.length - l) ++ [t] := by
-          simp [hidx, List.drop_append, hlPref]
+          simp [List.drop_append]
         simpa [hdrop] using hdrop.symm
 
 private lemma frontier_extend_of_candidate {pat pref : List α} {k l : Nat} {t : α}
@@ -2231,29 +2212,23 @@ private lemma frontier_extend_of_candidate {pat pref : List α} {k l : Nat} {t :
     (hlPat : l < pat.length)
     (hChar : pat[l]? = some t) :
     pat.take (l + 1) = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := by
-  have hEqL : pat.take l = pref.drop (pref.length - l) :=
-    frontierState_candidate_eq hstate hCand
+  have hEqL : pat.take l = pref.drop (pref.length - l) := by
+    rcases hstate with ⟨_, hEqK, _⟩
+    rcases hCand with rfl | hBorder
+    · exact hEqK
+    · rcases hBorder with ⟨hlk, hBorderEq⟩
+      calc
+        pat.take l = (pat.take k).drop (k - l) := hBorderEq
+        _ = (pref.drop (pref.length - k)).drop (k - l) := by simp [hEqK]
+        _ = pref.drop ((pref.length - k) + (k - l)) := by rw [List.drop_drop]
+        _ = pref.drop (pref.length - l) := by
+          have hlk' : l ≤ k := Nat.le_of_lt hlk
+          have hcalc : (pref.length - k) + (k - l) = pref.length - l := by omega
+          simp [hcalc]
   have hleK : l ≤ k := fallbackCandidate_le hCand
   rcases hstate with ⟨hkPref, _, _⟩
   have hlPref : l ≤ pref.length := le_trans hleK hkPref
   exact (suffix_succ_iff hlPat hlPref).2 ⟨hEqL, hChar⟩
-
-private lemma border_of_frontier_suffix {pat pref : List α} {k l : Nat}
-    (hstate : FrontierState pat pref k)
-    (hlk : l < k)
-    (hEqL : pat.take l = pref.drop (pref.length - l)) :
-    Border pat k l := by
-  rcases hstate with ⟨hkPref, hEqK, _⟩
-  constructor
-  · exact hlk
-  · calc
-      pat.take l = pref.drop (pref.length - l) := hEqL
-      _ = pref.drop ((pref.length - k) + (k - l)) := by
-        have hcalc : (pref.length - k) + (k - l) = pref.length - l := by omega
-        simp [hcalc]
-      _ = (pref.drop (pref.length - k)).drop (k - l) := by
-        rw [List.drop_drop]
-      _ = (pat.take k).drop (k - l) := by simp [hEqK]
 
 private lemma frontier_candidate_of_suffix_succ {pat pref : List α} {k l : Nat} {t : α}
     (hstate : FrontierState pat pref k)
@@ -2270,7 +2245,16 @@ private lemma frontier_candidate_of_suffix_succ {pat pref : List α} {k l : Nat}
     by_cases hEq : l = k
     · exact Or.inl hEq
     · have hlt : l < k := by omega
-      exact Or.inr (border_of_frontier_suffix hstate hlt hEqL)
+      refine Or.inr ⟨hlt, ?_⟩
+      rcases hstate with ⟨_, hEqK, _⟩
+      calc
+        pat.take l = pref.drop (pref.length - l) := hEqL
+        _ = pref.drop ((pref.length - k) + (k - l)) := by
+          have hcalc : (pref.length - k) + (k - l) = pref.length - l := by omega
+          simp [hcalc]
+        _ = (pref.drop (pref.length - k)).drop (k - l) := by
+          rw [List.drop_drop]
+        _ = (pat.take k).drop (k - l) := by simp [hEqK]
   exact ⟨hCand, hChar⟩
 
 private lemma frontierState_step_none {pat pref : List α} {k : Nat} {t : α}
@@ -2473,14 +2457,14 @@ private lemma fallbackCandidate_of_match_start [BEq α] [LawfulBEq α]
       pat.take (l + 1) = pref.drop i ++ [t] := by
         exact htakeEq.trans htakeDrop
       _ = pref.drop (pref.length - l) ++ [t] := by
-        simpa [hiEq]
+        simp [hiEq]
       _ = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := by
         have hidx : (pref ++ [t]).length - (l + 1) = pref.length - l := by
           simp
         have hdrop :
             (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) =
               pref.drop (pref.length - l) ++ [t] := by
-          simp [hidx, List.drop_append, hlPref]
+          simp [List.drop_append]
         simpa [hdrop] using hdrop.symm
   simpa [l] using frontier_candidate_of_suffix_succ hstate hlPat hlPref hsucc
 
@@ -2908,7 +2892,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               cases hk''
               exact hfull hkfull
             rw [pendingMatches_cons (hpat := h0), if_neg hnohit]
-            simp [hres, hfull]
+            simp [hfull]
             simpa using ih (pref := pref ++ [t]) (k := k' + 1) hnextLt hstateNext hprefix
 
 theorem kmpPatternSearch_eval [BEq α] [LawfulBEq α] (pat txt : List α) :
