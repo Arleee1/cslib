@@ -1839,41 +1839,6 @@ private lemma kmpSearchFallback_eval_some_lt_pat_length [BEq α]
                     simpa [kmpSearchFallback, hpk, hcmp, hnext, hneg] using hres
                   exact ih (k := Int.toNat nextK) hrec
 
-private lemma kmpSearchFallback_eval_some_eq [BEq α] [LawfulBEq α]
-    (fuel : Nat) (t : α) (k : Nat) (pat : List α) (table : List Int) {k' : Nat}
-    (hres : (kmpSearchFallback fuel t k pat table).eval Comparison.natCost = some k') :
-    ∃ hk' : k' < pat.length, pat[k']'hk' = t := by
-  induction fuel generalizing k with
-  | zero =>
-      simp [kmpSearchFallback] at hres
-  | succ fuel ih =>
-      cases hpk : pat[k]? with
-      | none =>
-          simp [kmpSearchFallback, hpk] at hres
-      | some pk =>
-          by_cases hcmp : pk == t
-          · have hsome : some k = some k' := by
-              simpa [kmpSearchFallback, hpk, hcmp] using hres
-            rcases Option.some.inj hsome with rfl
-            have hk : k < pat.length := (List.getElem?_eq_some_iff.mp hpk).1
-            have hpkEq : pat[k]'hk = pk := by
-              simpa [hpk] using (List.getElem?_eq_getElem hk).symm
-            refine ⟨hk, ?_⟩
-            exact hpkEq.trans (eq_of_beq hcmp)
-          · cases hnext : table[k]? with
-            | none =>
-                simp [kmpSearchFallback, hpk, hcmp, hnext] at hres
-            | some nextK =>
-                by_cases hneg : nextK < 0
-                · have hnone : none = some k' := by
-                    simp [kmpSearchFallback, hpk, hcmp, hnext, hneg] at hres
-                  cases hnone
-                · have hrec :
-                      (kmpSearchFallback fuel t (Int.toNat nextK) pat table).eval
-                        Comparison.natCost = some k' := by
-                    simpa [kmpSearchFallback, hpk, hcmp, hnext, hneg] using hres
-                  exact ih (k := Int.toNat nextK) hrec
-
 private def FallbackCandidate (pat : List α) (k l : Nat) : Prop :=
   l = k ∨ Border pat k l
 
@@ -2122,23 +2087,6 @@ private lemma kmpSearchFallback_eval_none_no_candidate [BEq α] [LawfulBEq α]
     ⟨k', hSome⟩
   rw [hres] at hSome
   cases hSome
-
-private lemma kmpSearchFallback_eval_some_iff_candidate [BEq α] [LawfulBEq α]
-    {pat : List α} {table : List Int}
-    (hTableLen : table.length = pat.length + 1)
-    (hprefix : FailurePrefix pat table pat.length (by omega) hTableLen)
-    (t : α) {k : Nat} (hk : k < pat.length) :
-    (∃ k', (kmpSearchFallback table.length t k pat table).eval Comparison.natCost = some k') ↔
-      ∃ l, FallbackCandidate pat k l ∧ pat[l]? = some t := by
-  constructor
-  · intro hSome
-    rcases hSome with ⟨k', hres⟩
-    rcases kmpSearchFallback_eval_some_candidate hTableLen hprefix table.length t k hk hres with
-      ⟨hCand, hChar, _⟩
-    exact ⟨k', hCand, hChar⟩
-  · intro hExists
-    have hFuel : k + 1 ≤ table.length := by omega
-    exact kmpSearchFallback_eval_some_of_candidate hTableLen hprefix t hk hExists table.length hFuel
 
 private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
   {pat : List α} {table : List Int}
