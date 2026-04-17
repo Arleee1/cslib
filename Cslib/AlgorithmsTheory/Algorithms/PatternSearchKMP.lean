@@ -1808,12 +1808,6 @@ private lemma kmpSearchPositionsAux_eval_append_acc [BEq α]
             rw [kmpSearchPositionsAux_eval_cons t ts j k pat table ([] : List Nat)]
             simpa [hmatched, hnext] using ih (j := j + 1) (k := k' + 1) (accRev := accRev)
 
-private lemma kmpSearchPositionsAux_eval_acc_prefix [BEq α]
-    (txt : List α) (j k : Nat) (pat : List α) (table : List Int) (accRev : List Nat) :
-    (kmpSearchPositionsAux txt j k pat table accRev).eval Comparison.natCost =
-      accRev.reverse ++ (kmpSearchPositionsAux txt j k pat table []).eval Comparison.natCost := by
-  simpa using kmpSearchPositionsAux_eval_append_acc txt j k pat table accRev
-
 private def FallbackCandidate (pat : List α) (k l : Nat) : Prop :=
   l = k ∨ Border pat k l
 
@@ -2335,62 +2329,6 @@ private lemma take_eq_of_isPrefixOf_true [BEq α] [LawfulBEq α]
       rw [List.take_take]
       simp [Nat.min_eq_left hn]
 
-private lemma fallbackCandidate_of_match_start [BEq α] [LawfulBEq α]
-    {pat pref ts : List α} {k i : Nat} {t : α}
-    (hstate : FrontierState pat pref k)
-    (hkPat : k < pat.length)
-    (hiBound : pref.length - k ≤ i)
-    (hiPref : i ≤ pref.length)
-    (hmatch : pat.isPrefixOf ((pref ++ t :: ts).drop i) = true) :
-    let l := pref.length - i
-    FallbackCandidate pat k l ∧ pat[l]? = some t := by
-  set l : Nat := pref.length - i
-  have hlLeK : l ≤ k := by
-    dsimp [l] at hiBound ⊢
-    omega
-  have hlPat : l < pat.length := lt_of_le_of_lt hlLeK hkPat
-  have hlPref : l ≤ pref.length := by
-    dsimp [l]
-    omega
-  have htakeEq :
-      pat.take (l + 1) = ((pref ++ t :: ts).drop i).take (l + 1) :=
-    take_eq_of_isPrefixOf_true hmatch (Nat.succ_le_of_lt hlPat)
-  have htakeDrop :
-      ((pref ++ t :: ts).drop i).take (l + 1) = pref.drop i ++ [t] := by
-    have hlenEq : l + 1 = (pref.drop i ++ [t]).length := by
-      dsimp [l]
-      rw [List.length_append, List.length_drop]
-      simp
-    calc
-      ((pref ++ t :: ts).drop i).take (l + 1)
-          = (pref.drop i ++ (t :: ts)).take (l + 1) := by
-              simp [List.drop_append, hiPref]
-      _ = ((pref.drop i ++ [t]) ++ ts).take (l + 1) := by
-            simp [List.append_assoc]
-      _ = (pref.drop i ++ [t]).take (l + 1) := by
-          rw [List.take_append_of_le_length (Nat.le_of_eq hlenEq)]
-      _ = pref.drop i ++ [t] := by
-            simp [hlenEq]
-  have hsucc :
-      pat.take (l + 1) = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := by
-    have hiEq : pref.length - l = i := by
-      dsimp [l]
-      omega
-    calc
-      pat.take (l + 1) = pref.drop i ++ [t] := by
-        exact htakeEq.trans htakeDrop
-      _ = pref.drop (pref.length - l) ++ [t] := by
-        simp [hiEq]
-      _ = (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) := by
-        have hidx : (pref ++ [t]).length - (l + 1) = pref.length - l := by
-          simp
-        have hdrop :
-            (pref ++ [t]).drop ((pref ++ [t]).length - (l + 1)) =
-              pref.drop (pref.length - l) ++ [t] := by
-          simp [List.drop_append]
-        simpa [hdrop] using hdrop.symm
-  simpa [l] using frontier_candidate_of_suffix_succ hstate hlPat hlPref hsucc
-
 private lemma kmpSearchFallback_eval_some_full_iff_match_start [BEq α] [LawfulBEq α]
       {pat pref ts : List α} {table : List Int} {k : Nat} {t : α}
       (hTableLen : table.length = pat.length + 1)
@@ -2606,55 +2544,6 @@ private lemma pendingMatches_nil [BEq α] [LawfulBEq α]
     · intro hprefix
       exact hpre hprefix
 
-private lemma frontierState_nil {pat : List α} :
-    FrontierState pat [] 0 := by
-  refine ⟨by simp, by simp, ?_⟩
-  intro l _ hl0 _
-  simpa using hl0
-
-private lemma pendingMatches_eq_patternSearchAll [BEq α] {pat txt : List α}
-    (hpat : 0 < pat.length) :
-    PendingMatches pat [] txt = PatternSearchAll pat txt := by
-  unfold PendingMatches
-  apply List.filter_eq_self.2
-  intro i hi
-  have h : 0 < i + pat.length := by omega
-  simp [h]
-
-private lemma suffix_eq_of_match_start [BEq α] [LawfulBEq α]
-    {pat pref ts : List α} {t : α}
-    (hlen : pat.length ≤ (pref ++ [t]).length)
-    (hmatch :
-      pat.isPrefixOf ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) = true) :
-    pat = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
-  have htake :
-      pat.take pat.length =
-        ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length :=
-    take_eq_of_isPrefixOf_true hmatch (by simp)
-  have hdropFull :
-      ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) =
-        (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := by
-    have hle : (pref ++ [t]).length - pat.length ≤ (pref ++ [t]).length := by omega
-    simpa [List.append_assoc] using
-      (List.drop_append_of_le_length
-        (l₁ := (pref ++ [t])) (l₂ := ts) (i := (pref ++ [t]).length - pat.length) hle)
-  have hlenDrop :
-      ((pref ++ [t]).drop ((pref ++ [t]).length - pat.length)).length = pat.length := by
-    rw [List.length_drop]
-    omega
-  calc
-    pat = pat.take pat.length := by simp
-    _ = ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)).take pat.length := htake
-    _ = (((pref ++ [t]).drop ((pref ++ [t]).length - pat.length)) ++ ts).take pat.length := by
-          rw [hdropFull]
-    _ = ((pref ++ [t]).drop ((pref ++ [t]).length - pat.length)).take pat.length := by
-          simpa using
-            (List.take_append_of_le_length
-              (l₁ := (pref ++ [t]).drop ((pref ++ [t]).length - pat.length))
-              (l₂ := ts) (i := pat.length) (Nat.le_of_eq hlenDrop.symm))
-    _ = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
-          exact List.take_of_length_le (Nat.le_of_eq hlenDrop)
-
 private lemma pendingMatches_cons [BEq α] [LawfulBEq α]
     {pat pref ts : List α} {t : α} (hpat : 0 < pat.length) :
     PendingMatches pat pref (t :: ts) =
@@ -2810,7 +2699,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               dsimp [reset]
               rw [if_pos hfull]
             rw [hbranch]
-            rw [kmpSearchPositionsAux_eval_acc_prefix]
+            rw [kmpSearchPositionsAux_eval_append_acc]
             simp
             simpa using ih (pref := pref ++ [t]) (k := reset) hresetLt hresetState
           · have hspecSome :
@@ -2851,12 +2740,22 @@ theorem kmpPatternSearch_eval [BEq α] [LawfulBEq α] (pat txt : List α) :
   | nil =>
       simpa using kmpSearchPositions_eval_nil (txt := txt)
   | cons p ps =>
+      have hPending :
+          PendingMatches (p :: ps) [] txt = PatternSearchAll (p :: ps) txt := by
+        unfold PendingMatches
+        apply List.filter_eq_self.2
+        intro i hi
+        simp
+      have hFrontierNil : FrontierState (p :: ps) [] 0 := by
+        refine ⟨by simp, by simp, ?_⟩
+        intro l _ hl0 _
+        simpa using hl0
       simp [kmpSearchPositions_eval_cons_unfold]
-      simpa [pendingMatches_eq_patternSearchAll (pat := p :: ps) (txt := txt)]
+      simpa [hPending]
         using
           (kmpSearchPositionsAux_eval_pendingMatches
             (pat := p :: ps) (pref := []) (txt := txt) (k := 0)
-            (by simp) (by simp) frontierState_nil)
+            (by simp) (by simp) hFrontierNil)
 
 end Correctness
 
