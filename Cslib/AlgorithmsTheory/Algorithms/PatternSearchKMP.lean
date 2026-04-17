@@ -2624,7 +2624,7 @@ private lemma kmpSearchPositionsAux_time_linear_buildLPS [BEq α] [LawfulBEq α]
 theorem kmpSearchPositions_time_complexity_upper_bound [BEq α] [LawfulBEq α]
     (pat txt : List α) :
     (kmpSearchPositions pat txt).time Comparison.natCost ≤
-      2 * txt.length + 2 * (pat.length - 1) := by
+      2 * (txt.length + pat.length - 1) := by
   cases pat with
   | nil =>
       simp [kmpSearchPositions]
@@ -2645,8 +2645,7 @@ theorem kmpSearchPositions_time_complexity_upper_bound [BEq α] [LawfulBEq α]
                 ((buildLPS (p :: ps)).eval Comparison.natCost) []).time
                   Comparison.natCost := by
         simp [kmpSearchPositions, Prog.time_bind]
-      rw [htime]
-      omega
+      grind
 
 end SearchTimeComplexity
 
