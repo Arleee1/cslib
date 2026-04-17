@@ -1691,42 +1691,53 @@ private lemma buildLPS_sentinel_longest_nonempty [BEq α] [LawfulBEq α]
             exfalso
             exact h1 (by simp)
 
-private lemma buildLPS_getElem?_sentinel [BEq α] [LawfulBEq α] (pat : List α) :
-    ((buildLPS pat).eval Comparison.natCost)[pat.length]? =
-      some (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
-        have hlen := buildLPS_length (pat := pat)
-        omega)) := by
-  have hlen := buildLPS_length (pat := pat)
-  exact
-    List.getElem?_eq_getElem (l := (buildLPS pat).eval Comparison.natCost)
-      (i := pat.length)
-      (by omega)
-
-private lemma buildLPS_reset_longestBorder_nonempty [BEq α] [LawfulBEq α]
-    {pat : List α} (h0 : 0 < pat.length) :
-    LongestBorder pat pat.length
-      (Int.toNat (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
-        have hlen := buildLPS_length (pat := pat)
-        omega))) := by
-  exact (buildLPS_sentinel_longest_nonempty (pat := pat) h0).2
-
-private lemma buildLPS_reset_value_nonempty [BEq α] [LawfulBEq α]
-    {pat : List α} (_h0 : 0 < pat.length) :
-    (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
-      | some suffixLen => Int.toNat suffixLen
-      | none => 0) =
-    Int.toNat (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
-      have hlen := buildLPS_length (pat := pat)
-      omega)) := by
-  rw [buildLPS_getElem?_sentinel (pat := pat)]
-
-private lemma buildLPS_reset_lt_length_nonempty [BEq α] [LawfulBEq α]
-    {pat : List α} (h0 : 0 < pat.length) :
-    (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
-      | some suffixLen => Int.toNat suffixLen
-      | none => 0) < pat.length := by
-  rw [buildLPS_reset_value_nonempty (pat := pat) h0]
-  exact (buildLPS_reset_longestBorder_nonempty (pat := pat) h0).1.1
+private lemma buildLPS_spec [BEq α] [LawfulBEq α] (pat : List α) :
+    ∃ hlen : ((buildLPS pat).eval Comparison.natCost).length = pat.length + 1,
+      FailurePrefix pat ((buildLPS pat).eval Comparison.natCost) pat.length (by omega) hlen ∧
+      (0 < pat.length →
+        let sentinel := ((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
+          have _hlen := buildLPS_length (pat := pat)
+          omega)
+        0 ≤ sentinel ∧
+        LongestBorder pat pat.length (Int.toNat sentinel) ∧
+        (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+          | some suffixLen => Int.toNat suffixLen
+          | none => 0) = Int.toNat sentinel ∧
+        (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+          | some suffixLen => Int.toNat suffixLen
+          | none => 0) < pat.length) := by
+  rcases buildLPS_failurePrefix_all (pat := pat) with ⟨hlen, hprefix⟩
+  refine ⟨hlen, hprefix, ?_⟩
+  intro h0
+  let sentinel :=
+    ((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
+      have _hlen := buildLPS_length (pat := pat)
+      omega)
+  have hsentinel :
+      0 ≤ sentinel ∧ LongestBorder pat pat.length (Int.toNat sentinel) := by
+    dsimp [sentinel]
+    exact buildLPS_sentinel_longest_nonempty (pat := pat) h0
+  have hsentinelGet? :
+      ((buildLPS pat).eval Comparison.natCost)[pat.length]? = some sentinel := by
+    dsimp [sentinel]
+    exact
+      List.getElem?_eq_getElem (l := (buildLPS pat).eval Comparison.natCost)
+        (i := pat.length)
+        (by
+          have _hlen := buildLPS_length (pat := pat)
+          omega)
+  have hresetEq :
+      (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+        | some suffixLen => Int.toNat suffixLen
+        | none => 0) = Int.toNat sentinel := by
+    simp [hsentinelGet?]
+  have hresetLt :
+      (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+        | some suffixLen => Int.toNat suffixLen
+        | none => 0) < pat.length := by
+    rw [hresetEq]
+    exact hsentinel.2.1.1
+  exact ⟨hsentinel.1, hsentinel.2, hresetEq, hresetLt⟩
 
 private lemma kmpSearchPositions_eval_cons_unfold [BEq α]
     (p : α) (ps txt : List α) :
@@ -2332,19 +2343,19 @@ private lemma frontierState_reset_buildLPS_nonempty [BEq α] [LawfulBEq α]
       (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
       | some suffixLen => Int.toNat suffixLen
       | none => 0) := by
+  rcases buildLPS_spec (pat := pat) with ⟨_, _, hspec⟩
   let r : Nat :=
     Int.toNat (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
       have hlen := buildLPS_length (pat := pat)
       omega))
+  have hs := hspec h0
   have hrEq :
       (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
       | some suffixLen => Int.toNat suffixLen
       | none => 0) = r := by
-    dsimp [r]
-    exact buildLPS_reset_value_nonempty (pat := pat) h0
+    simpa [r] using hs.2.2.1
   have hlong : LongestBorder pat pat.length r := by
-    dsimp [r]
-    exact buildLPS_reset_longestBorder_nonempty (pat := pat) h0
+    simpa [r] using hs.2.1
   have hstateR : FrontierState pat pref r :=
     frontierState_of_full_and_longestBorder (pat := pat) (pref := pref)
       (r := r) hstateFull hlong
@@ -2762,13 +2773,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
     (kmpSearchPositionsAux txt pref.length k pat
       ((buildLPS pat).eval Comparison.natCost) []).eval Comparison.natCost =
       PendingMatches pat pref txt := by
-  have hTableLen : ((buildLPS pat).eval Comparison.natCost).length = pat.length + 1 :=
-    buildLPS_length (pat := pat)
-  have hprefix :
-      FailurePrefix pat ((buildLPS pat).eval Comparison.natCost)
-        pat.length (by omega) hTableLen := by
-    rcases buildLPS_failurePrefix_all (pat := pat) with ⟨hlen, hprefix⟩
-    simpa using hprefix
+  rcases buildLPS_spec (pat := pat) with ⟨hTableLen, hprefix, hbuildSpec⟩
   induction txt generalizing pref k with
   | nil =>
       rw [kmpSearchPositionsAux_eval_nil]
@@ -2795,7 +2800,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
             cases hk'.1
           rw [pendingMatches_cons (hpat := h0), if_neg hnohit]
           simp
-          simpa using ih (pref := pref ++ [t]) (k := 0) h0 hstate0 hprefix
+          simpa using ih (pref := pref ++ [t]) (k := 0) h0 hstate0
       | some k' =>
           by_cases hfull : k' + 1 = pat.length
           · have hhit :
@@ -2819,7 +2824,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               exact frontierState_reset_buildLPS_nonempty (pat := pat) h0 hstateFull
             have hresetLt : reset < pat.length := by
               dsimp [reset]
-              exact buildLPS_reset_lt_length_nonempty (pat := pat) h0
+              simpa using (hbuildSpec h0).2.2.2
             rw [pendingMatches_cons (hpat := h0), if_pos hhit]
             have hbranch :
                 (match some k' with
@@ -2847,7 +2852,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
             rw [hbranch]
             rw [kmpSearchPositionsAux_eval_acc_prefix]
             simp
-            simpa using ih (pref := pref ++ [t]) (k := reset) hresetLt hresetState hprefix
+            simpa using ih (pref := pref ++ [t]) (k := reset) hresetLt hresetState
           · have hk'Pat : k' < pat.length :=
               kmpSearchFallback_eval_some_lt_pat_length
                 (((buildLPS pat).eval Comparison.natCost).length) t k pat
@@ -2872,7 +2877,7 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               exact hfull hkfull
             rw [pendingMatches_cons (hpat := h0), if_neg hnohit]
             simp [hfull]
-            simpa using ih (pref := pref ++ [t]) (k := k' + 1) hnextLt hstateNext hprefix
+            simpa using ih (pref := pref ++ [t]) (k := k' + 1) hnextLt hstateNext
 
 theorem kmpPatternSearch_eval [BEq α] [LawfulBEq α] (pat txt : List α) :
     (kmpSearchPositions pat txt).eval Comparison.natCost = PatternSearchAll pat txt := by
