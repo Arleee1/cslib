@@ -1814,37 +1814,6 @@ private lemma kmpSearchPositionsAux_eval_acc_prefix [BEq α]
       accRev.reverse ++ (kmpSearchPositionsAux txt j k pat table []).eval Comparison.natCost := by
   simpa using kmpSearchPositionsAux_eval_append_acc txt j k pat table accRev
 
-private lemma kmpSearchFallback_eval_some_lt_pat_length [BEq α]
-    (fuel : Nat) (t : α) (k : Nat) (pat : List α) (table : List Int) {k' : Nat}
-    (hres : (kmpSearchFallback fuel t k pat table).eval Comparison.natCost = some k') :
-    k' < pat.length := by
-  induction fuel generalizing k with
-  | zero =>
-      simp [kmpSearchFallback] at hres
-  | succ fuel ih =>
-      cases hpk : pat[k]? with
-      | none =>
-          simp [kmpSearchFallback, hpk] at hres
-      | some pk =>
-          by_cases hcmp : pk == t
-          · have hsome : some k = some k' := by
-              simpa [kmpSearchFallback, hpk, hcmp] using hres
-            rcases Option.some.inj hsome with rfl
-            exact (List.getElem?_eq_some_iff.mp hpk).1
-          · cases hnext : table[k]? with
-            | none =>
-                simp [kmpSearchFallback, hpk, hcmp, hnext] at hres
-            | some nextK =>
-                by_cases hneg : nextK < 0
-                · have hnone : none = some k' := by
-                    simp [kmpSearchFallback, hpk, hcmp, hnext, hneg] at hres
-                  cases hnone
-                · have hrec :
-                      (kmpSearchFallback fuel t (Int.toNat nextK) pat table).eval
-                        Comparison.natCost = some k' := by
-                    simpa [kmpSearchFallback, hpk, hcmp, hnext, hneg] using hres
-                  exact ih (k := Int.toNat nextK) hrec
-
 private def FallbackCandidate (pat : List α) (k l : Nat) : Prop :=
   l = k ∨ Border pat k l
 
@@ -2077,23 +2046,6 @@ private lemma kmpSearchFallback_eval_some_of_candidate [BEq α] [LawfulBEq α]
                     refine ⟨k'', ?_⟩
                     simp [kmpSearchFallback, hpk, hcmp, hnext, hneg, hk'']
 
-private lemma kmpSearchFallback_eval_none_no_candidate [BEq α] [LawfulBEq α]
-    {pat : List α} {table : List Int}
-    (hTableLen : table.length = pat.length + 1)
-    (hprefix : FailurePrefix pat table pat.length (by omega) hTableLen)
-    (t : α) {k : Nat} (hk : k < pat.length)
-    (hres : (kmpSearchFallback table.length t k pat table).eval Comparison.natCost = none) :
-    ∀ l, FallbackCandidate pat k l → pat[l]? ≠ some t := by
-  intro l hCand hChar
-  have hFuel : k + 1 ≤ table.length := by omega
-  have hExists : ∃ l0, FallbackCandidate pat k l0 ∧ pat[l0]? = some t :=
-    ⟨l, hCand, hChar⟩
-  rcases kmpSearchFallback_eval_some_of_candidate hTableLen hprefix
-      t hk hExists table.length hFuel with
-    ⟨k', hSome⟩
-  rw [hres] at hSome
-  cases hSome
-
 private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
   {pat : List α} {table : List Int}
   (hTableLen : table.length = pat.length + 1)
@@ -2108,7 +2060,15 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
       ∀ l, FallbackCandidate pat k l → pat[l]? = some t → l ≤ k' := by
   cases hres : (kmpSearchFallback table.length t k pat table).eval Comparison.natCost with
   | none =>
-    exact kmpSearchFallback_eval_none_no_candidate hTableLen hprefix t hk hres
+    intro l hCand hChar
+    have hFuel : k + 1 ≤ table.length := by omega
+    have hExists : ∃ l0, FallbackCandidate pat k l0 ∧ pat[l0]? = some t :=
+      ⟨l, hCand, hChar⟩
+    rcases kmpSearchFallback_eval_some_of_candidate hTableLen hprefix
+        t hk hExists table.length hFuel with
+      ⟨k', hSome⟩
+    rw [hres] at hSome
+    cases hSome
   | some k' =>
     exact kmpSearchFallback_eval_some_candidate hTableLen hprefix table.length t k hk hres
 
@@ -2853,10 +2813,16 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
             rw [kmpSearchPositionsAux_eval_acc_prefix]
             simp
             simpa using ih (pref := pref ++ [t]) (k := reset) hresetLt hresetState
-          · have hk'Pat : k' < pat.length :=
-              kmpSearchFallback_eval_some_lt_pat_length
-                (((buildLPS pat).eval Comparison.natCost).length) t k pat
-                ((buildLPS pat).eval Comparison.natCost) hres
+          · have hspecSome :
+                FallbackCandidate pat k k' ∧
+                  pat[k']? = some t ∧
+                  ∀ l, FallbackCandidate pat k l → pat[l]? = some t → l ≤ k' := by
+              simpa [hres] using
+                (kmpSearchFallback_eval_full_spec
+                  (pat := pat) (table := (buildLPS pat).eval Comparison.natCost)
+                  hTableLen hprefix t hkPat)
+            have hk'Pat : k' < pat.length :=
+              lt_of_le_of_lt (fallbackCandidate_le hspecSome.1) hkPat
             have hnextLt : k' + 1 < pat.length := by
               omega
             have hstateNext : FrontierState pat (pref ++ [t]) (k' + 1) := by
