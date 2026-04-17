@@ -1705,6 +1705,21 @@ private lemma failurePrefix_entry_at [BEq α]
     FailureEntry pat k hk (table[k]'(by omega)) := by
   simpa [FailurePrefix] using hprefix k hk
 
+private lemma getElem_eq_of_getElem?_eq_some
+    {xs : List α} {i : Nat} (hi : i < xs.length) {x : α}
+    (h : xs[i]? = some x) :
+    xs[i]'hi = x := by
+  exact Option.some.inj (by rw [← List.getElem?_eq_getElem hi, h])
+
+private lemma beq_false_of_same_getElem? [BEq α] [LawfulBEq α]
+    {xs : List α} {i : Nat} (hi : i < xs.length)
+    {a b : α} (hneq : ¬ a == b)
+    (ha : xs[i]? = some a) (hb : xs[i]? = some b) : False := by
+  have ha' : xs[i]'hi = a := getElem_eq_of_getElem?_eq_some hi ha
+  have hb' : xs[i]'hi = b := getElem_eq_of_getElem?_eq_some hi hb
+  have hab : a = b := ha'.symm.trans hb'
+  exact hneq (by simp [hab])
+
 private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
   {pat : List α} {table : List Int}
   (hTableLen : table.length = pat.length + 1)
@@ -1739,7 +1754,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
               rcases Option.some.inj hsome with rfl
               refine ⟨Or.inl rfl, ?_, ?_⟩
               · have hkGet : pat[k]'hk = pk := by
-                  simpa [hpk] using (List.getElem?_eq_getElem hk).symm
+                  exact getElem_eq_of_getElem?_eq_some (xs := pat) hk hpk
                 have hEq : pat[k]'hk = t := hkGet.trans (eq_of_beq hcmp)
                 simpa [hEq] using (List.getElem?_eq_getElem hk)
               · intro l hCandL _
@@ -1764,8 +1779,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                     have hEntry0 : FailureEntry pat k hk (table[k]'hkTable) :=
                       failurePrefix_entry_at hTableLen hprefix hk
                     have hvalEq : table[k]'hkTable = nextK := by
-                      apply Option.some.inj
-                      rw [← List.getElem?_eq_getElem hkTable, hnext]
+                      exact getElem_eq_of_getElem?_eq_some (xs := table) hkTable hnext
                     have hEntry : FailureEntry pat k hk nextK := by
                       simpa [hvalEq] using hEntry0
                     have hkNextLtK : Int.toNat nextK < k := by
@@ -1794,21 +1808,14 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                       rcases hCandL with hEqL | hBorderL
                       · exfalso
                         cases hEqL
-                        have hkGet : pat[k]'hk = pk := by
-                          apply Option.some.inj
-                          rw [← List.getElem?_eq_getElem hk, hpk]
-                        have hEqK : pat[k]'hk = t := by
-                          apply Option.some.inj
-                          rw [← List.getElem?_eq_getElem hk, hCharL]
-                        have hpkEq : pk = t := hkGet.symm.trans hEqK
-                        exact hcmp (by simp [hpkEq])
+                        exact False.elim
+                          (beq_false_of_same_getElem? (xs := pat) hk hcmp hpk hCharL)
                       · have hl : l < pat.length := (List.getElem?_eq_some_iff.mp hCharL).1
                         have hEqL : pat[l]'(lt_trans hBorderL.1 hk) = t := by
-                          apply Option.some.inj
-                          rw [← List.getElem?_eq_getElem (lt_trans hBorderL.1 hk), hCharL]
+                          exact getElem_eq_of_getElem?_eq_some
+                            (xs := pat) (lt_trans hBorderL.1 hk) hCharL
                         have hkGet : pat[k]'hk = pk := by
-                          apply Option.some.inj
-                          rw [← List.getElem?_eq_getElem hk, hpk]
+                          exact getElem_eq_of_getElem?_eq_some (xs := pat) hk hpk
                         have hneKL : pat[k]'hk ≠ pat[l]'(lt_trans hBorderL.1 hk) := by
                           intro hEq
                           have hpkEq : pk = t := hkGet.symm.trans (hEq.trans hEqL)
@@ -1847,14 +1854,8 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
               rcases hCandL with hEqL | hBorderL
               · exfalso
                 cases hEqL
-                have hkGet : pat[k]'hk = pk := by
-                  apply Option.some.inj
-                  rw [← List.getElem?_eq_getElem hk, hpk]
-                have hEqK : pat[k]'hk = t := by
-                  apply Option.some.inj
-                  rw [← List.getElem?_eq_getElem hk, hCharL]
-                have hpkEq : pk = t := hkGet.symm.trans hEqK
-                exact hcmp (by simp [hpkEq])
+                exact False.elim
+                  (beq_false_of_same_getElem? (xs := pat) hk hcmp hpk hCharL)
               · cases hnext : table[k]? with
                 | none =>
                     exfalso
@@ -1869,8 +1870,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                       have hEntry0 : FailureEntry pat k hk (table[k]'hkTable) :=
                         failurePrefix_entry_at hTableLen hprefix hk
                       have hvalEq : table[k]'hkTable = nextK := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem hkTable, hnext]
+                        exact getElem_eq_of_getElem?_eq_some (xs := table) hkTable hnext
                       have hEntry : FailureEntry pat k hk nextK := by
                         simpa [hvalEq] using hEntry0
                       have hAllEq :
@@ -1878,11 +1878,10 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                             pat[k]'hk = pat[l]'(lt_trans hl.1 hk) := by
                         simpa [FailureEntry, hneg] using hEntry
                       have hEqL : pat[l]'(lt_trans hBorderL.1 hk) = t := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem (lt_trans hBorderL.1 hk), hCharL]
+                        exact getElem_eq_of_getElem?_eq_some
+                          (xs := pat) (lt_trans hBorderL.1 hk) hCharL
                       have hkGet : pat[k]'hk = pk := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem hk, hpk]
+                        exact getElem_eq_of_getElem?_eq_some (xs := pat) hk hpk
                       have hEqKL : pat[k]'hk = pat[l]'(lt_trans hBorderL.1 hk) := hAllEq l hBorderL
                       have hpkEq : pk = t := hkGet.symm.trans (hEqKL.trans hEqL)
                       exact hcmp (by simp [hpkEq])
@@ -1891,8 +1890,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                       have hEntry0 : FailureEntry pat k hk (table[k]'hkTable) :=
                         failurePrefix_entry_at hTableLen hprefix hk
                       have hvalEq : table[k]'hkTable = nextK := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem hkTable, hnext]
+                        exact getElem_eq_of_getElem?_eq_some (xs := table) hkTable hnext
                       have hEntry : FailureEntry pat k hk nextK := by
                         simpa [hvalEq] using hEntry0
                       have hkNextLtK : Int.toNat nextK < k := by
@@ -1908,11 +1906,10 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                         simpa [FailureEntry, hneg'] using hEntry
                       rcases hEntryPos with ⟨hnBorder, _, hEntryMax⟩
                       have hEqL : pat[l]'(lt_trans hBorderL.1 hk) = t := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem (lt_trans hBorderL.1 hk), hCharL]
+                        exact getElem_eq_of_getElem?_eq_some
+                          (xs := pat) (lt_trans hBorderL.1 hk) hCharL
                       have hkGet : pat[k]'hk = pk := by
-                        apply Option.some.inj
-                        rw [← List.getElem?_eq_getElem hk, hpk]
+                        exact getElem_eq_of_getElem?_eq_some (xs := pat) hk hpk
                       have hneKL : pat[k]'hk ≠ pat[l]'(lt_trans hBorderL.1 hk) := by
                         intro hEq
                         have hpkEq : pk = t := hkGet.symm.trans (hEq.trans hEqL)
@@ -1931,18 +1928,30 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                         ⟨k'', hk''⟩
                       refine ⟨k'', ?_⟩
                       simp [kmpSearchFallback, hpk, hcmp, hnext, hneg, hk'']
+  have hfallbackTools :
+      (∀ (fuel : Nat) (k : Nat), (hk : k < pat.length) →
+        ∀ {k' : Nat},
+          (kmpSearchFallback fuel t k pat table).eval Comparison.natCost = some k' →
+            FallbackCandidate pat k k' ∧
+              pat[k']? = some t ∧
+              ∀ l, FallbackCandidate pat k l → pat[l]? = some t → l ≤ k') ∧
+      (∀ {k : Nat}, (hk : k < pat.length) →
+        (∃ l, FallbackCandidate pat k l ∧ pat[l]? = some t) →
+        ∀ fuel, k + 1 ≤ fuel →
+          ∃ k', (kmpSearchFallback fuel t k pat table).eval Comparison.natCost = some k') :=
+    ⟨hsomeCandidate, hsomeOfCandidate⟩
   cases hres : (kmpSearchFallback table.length t k pat table).eval Comparison.natCost with
   | none =>
     intro l hCand hChar
     have hFuel : k + 1 ≤ table.length := by omega
     have hExists : ∃ l0, FallbackCandidate pat k l0 ∧ pat[l0]? = some t :=
       ⟨l, hCand, hChar⟩
-    rcases hsomeOfCandidate hk hExists table.length hFuel with
+    rcases hfallbackTools.2 hk hExists table.length hFuel with
       ⟨k', hSome⟩
     rw [hres] at hSome
     cases hSome
   | some k' =>
-    exact hsomeCandidate table.length k hk hres
+    exact hfallbackTools.1 table.length k hk hres
 
 private def FrontierState (pat pref : List α) (k : Nat) : Prop :=
   k ≤ pref.length ∧
@@ -2113,6 +2122,64 @@ private lemma frontierState_step_kmpSearchFallback_eval [BEq α] [LawfulBEq α]
               have hle : l' ≤ k' := hMaxCand l' hCandL hCharL
               omega
       simpa [hres] using hsomeStep
+
+private lemma frontierState_reset_buildLPS_nonempty [BEq α] [LawfulBEq α]
+    {pat pref : List α}
+    (h0 : 0 < pat.length)
+    (hstateFull : FrontierState pat pref pat.length) :
+    FrontierState pat pref
+      (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+      | some suffixLen => Int.toNat suffixLen
+      | none => 0) := by
+  rcases buildLPS_spec (pat := pat) with ⟨_, _, hspec⟩
+  let r : Nat :=
+    Int.toNat (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
+      have hlen := buildLPS_length (pat := pat)
+      omega))
+  have hs := hspec h0
+  have hrEq :
+      (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
+      | some suffixLen => Int.toNat suffixLen
+      | none => 0) = r := by
+    simpa [r] using hs.2.2.1
+  have hlong : LongestBorder pat pat.length r := by
+    simpa [r] using hs.2.1
+  have hstateR : FrontierState pat pref r := by
+    rcases hstateFull with ⟨hpatPref, hEqFull, hmaxFull⟩
+    rcases hlong with ⟨hborderR, hmaxR⟩
+    have hrle : r ≤ pat.length := Nat.le_of_lt hborderR.1
+    refine ⟨?_, ?_, ?_⟩
+    · exact le_trans (Nat.le_of_lt hborderR.1) hpatPref
+    · calc
+        pat.take r = (pat.take pat.length).drop (pat.length - r) := hborderR.2
+        _ = (pref.drop (pref.length - pat.length)).drop (pat.length - r) := by
+              simp [hEqFull]
+        _ = pref.drop ((pref.length - pat.length) + (pat.length - r)) := by
+              rw [List.drop_drop]
+        _ = pref.drop (pref.length - r) := by
+              have hcalc : (pref.length - pat.length) + (pat.length - r) = pref.length - r := by
+                have hpatPref' : pat.length ≤ pref.length := hpatPref
+                have hrle' : r ≤ pat.length := hrle
+                omega
+              simp [hcalc]
+    · intro l hlPat hlPref hsuf
+      have hlle : l ≤ pat.length := Nat.le_of_lt hlPat
+      have hborderL : Border pat pat.length l := by
+        constructor
+        · exact hlPat
+        · calc
+            pat.take l = pref.drop (pref.length - l) := hsuf
+            _ = pref.drop ((pref.length - pat.length) + (pat.length - l)) := by
+                  have hcalc : (pref.length - pat.length) + (pat.length - l) = pref.length - l := by
+                    have hpatPref' : pat.length ≤ pref.length := hpatPref
+                    have hlle' : l ≤ pat.length := hlle
+                    omega
+                  simp [hcalc]
+            _ = (pref.drop (pref.length - pat.length)).drop (pat.length - l) := by
+                  rw [List.drop_drop]
+            _ = (pat.take pat.length).drop (pat.length - l) := by simp [hEqFull]
+      exact hmaxR l hborderL
+  simpa [hrEq] using hstateR
 
 private lemma kmpSearchFallback_eval_some_full_iff_match_start [BEq α] [LawfulBEq α]
       {pat pref ts : List α} {table : List Int} {k : Nat} {t : α}
@@ -2322,12 +2389,20 @@ private lemma pendingMatches_cons [BEq α] [LawfulBEq α]
         PendingMatches pat (pref ++ [t]) ts := by
   set hit : Prop := pat.length ≤ (pref ++ [t]).length ∧
     pat.isPrefixOf ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) = true
+  set start : Nat := pref.length + 1 - pat.length
+  have hstartEq : (pref ++ [t]).length - pat.length = start := by
+    simp [start]
+  have hstartLt : start < (pref ++ t :: ts).length := by
+    have hstartLe : start ≤ pref.length := by
+      have hpat1 : 1 ≤ pat.length := Nat.succ_le_of_lt hpat
+      calc
+        start = pref.length + 1 - pat.length := by simp [start]
+        _ ≤ pref.length + 1 - 1 := Nat.sub_le_sub_left hpat1 (pref.length + 1)
+        _ = pref.length := by simp
+    exact lt_of_le_of_lt hstartLe (by simp)
   by_cases hhit : hit
   · rcases hhit with ⟨hlen, hmatch⟩
     dsimp [hit]
-    set start : Nat := pref.length + 1 - pat.length
-    have hstartEq : (pref ++ [t]).length - pat.length = start := by
-      simp [start]
     have hmatch' : pat.isPrefixOf ((pref ++ t :: ts).drop start) = true := by
       simpa [hstartEq] using hmatch
     have hnext : (pref ++ [t]).length + 1 - pat.length = start + 1 := by
@@ -2335,11 +2410,6 @@ private lemma pendingMatches_cons [BEq α] [LawfulBEq α]
       omega
     have hnext' : start + 1 = pref.length + 1 + 1 - pat.length := by
       simpa using hnext.symm
-    have hstartLt : start < (pref ++ t :: ts).length := by
-      have hstartLe : start ≤ pref.length := by
-        dsimp [start]
-        omega
-      exact lt_of_le_of_lt hstartLe (by simp)
     rw [pendingMatches_eq_Ico_filter, pendingMatches_eq_Ico_filter]
     rw [if_pos (by exact ⟨hlen, hmatch⟩), List.Ico.eq_cons hstartLt]
     simp [List.filter, hmatch', hnext']
@@ -2350,9 +2420,6 @@ private lemma pendingMatches_cons [BEq α] [LawfulBEq α]
           true := by
         intro hm
         exact hcase ⟨hlen, hm⟩
-      set start : Nat := pref.length + 1 - pat.length
-      have hstartEq : (pref ++ [t]).length - pat.length = start := by
-        simp [start]
       have hmatch' : pat.isPrefixOf ((pref ++ t :: ts).drop start) ≠ true := by
         simpa [hstartEq] using hmatch
       have hnext : (pref ++ [t]).length + 1 - pat.length = start + 1 := by
@@ -2360,26 +2427,24 @@ private lemma pendingMatches_cons [BEq α] [LawfulBEq α]
         omega
       have hnext' : start + 1 = pref.length + 1 + 1 - pat.length := by
         simpa using hnext.symm
-      have hstartLt : start < (pref ++ t :: ts).length := by
-        have hstartLe : start ≤ pref.length := by
-          dsimp [start]
-          omega
-        exact lt_of_le_of_lt hstartLe (by simp)
       rw [pendingMatches_eq_Ico_filter, pendingMatches_eq_Ico_filter]
       rw [if_neg hcase, List.Ico.eq_cons hstartLt]
       simp [List.filter, hmatch', hnext']
     · have hlt : (pref ++ [t]).length < pat.length := Nat.lt_of_not_ge hlen
-      have hstart0 : pref.length + 1 - pat.length = 0 := by
+      have hstart0 : start = 0 := by
         apply Nat.sub_eq_zero_of_le
+        dsimp [start]
         simpa using Nat.le_of_lt hlt
       have hnext0 : (pref ++ [t]).length + 1 - pat.length = 0 := by
         apply Nat.sub_eq_zero_of_le
         exact Nat.succ_le_of_lt hlt
       have hnext0' : pref.length + 1 + 1 - pat.length = 0 := by
         simpa using hnext0
+      have hstart0' : pref.length + 1 - pat.length = 0 := by
+        simpa [start] using hstart0
       rw [pendingMatches_eq_Ico_filter, pendingMatches_eq_Ico_filter]
       rw [if_neg hcase]
-      simp [hstart0, hnext0']
+      simp [hstart0', hnext0']
 
 private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
     {pat pref txt : List α} {k : Nat}
@@ -2459,91 +2524,13 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               | none => 0
             have hresetState : FrontierState pat (pref ++ [t]) reset := by
               dsimp [reset]
-              let r : Nat :=
-                Int.toNat (((buildLPS pat).eval Comparison.natCost)[pat.length]'(by
-                  have hlen := buildLPS_length (pat := pat)
-                  omega))
-              have hs := hbuildSpec h0
-              have hrEq :
-                  (match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
-                  | some suffixLen => Int.toNat suffixLen
-                  | none => 0) = r := by
-                simpa [r] using hs.2.2.1
-              have hlong : LongestBorder pat pat.length r := by
-                simpa [r] using hs.2.1
-              let pref' : List α := pref ++ [t]
-              have hstateFull' : FrontierState pat pref' pat.length := by
-                simpa [pref'] using hstateFull
-              have hstateR' : FrontierState pat pref' r := by
-                rcases hstateFull' with ⟨hpatPref, hEqFull, hmaxFull⟩
-                rcases hlong with ⟨hborderR, hmaxR⟩
-                have hrle : r ≤ pat.length := Nat.le_of_lt hborderR.1
-                refine ⟨?_, ?_, ?_⟩
-                · exact le_trans (Nat.le_of_lt hborderR.1) hpatPref
-                · calc
-                    pat.take r = (pat.take pat.length).drop (pat.length - r) := hborderR.2
-                    _ = (pref'.drop (pref'.length - pat.length)).drop (pat.length - r) := by
-                          simp [hEqFull]
-                    _ = pref'.drop ((pref'.length - pat.length) + (pat.length - r)) := by
-                          rw [List.drop_drop]
-                    _ = pref'.drop (pref'.length - r) := by
-                          have hcalc :
-                              (pref'.length - pat.length) + (pat.length - r) =
-                                pref'.length - r := by
-                            have hpatPref' : pat.length ≤ pref'.length := hpatPref
-                            have hrle' : r ≤ pat.length := hrle
-                            omega
-                          simp [hcalc]
-                · intro l hlPat hlPref hsuf
-                  have hlle : l ≤ pat.length := Nat.le_of_lt hlPat
-                  have hborderL : Border pat pat.length l := by
-                    constructor
-                    · exact hlPat
-                    · calc
-                        pat.take l = pref'.drop (pref'.length - l) := hsuf
-                        _ = pref'.drop ((pref'.length - pat.length) + (pat.length - l)) := by
-                              have hcalc :
-                                  (pref'.length - pat.length) + (pat.length - l) =
-                                    pref'.length - l := by
-                                have hpatPref' : pat.length ≤ pref'.length := hpatPref
-                                have hlle' : l ≤ pat.length := hlle
-                                omega
-                              simp [hcalc]
-                        _ = (pref'.drop (pref'.length - pat.length)).drop (pat.length - l) := by
-                              rw [List.drop_drop]
-                        _ = (pat.take pat.length).drop (pat.length - l) := by simp [hEqFull]
-                  exact hmaxR l hborderL
-              have hstateR : FrontierState pat (pref ++ [t]) r := by
-                simpa [pref'] using hstateR'
-              simpa [hrEq] using hstateR
+              exact frontierState_reset_buildLPS_nonempty (pat := pat) h0 hstateFull
             have hresetLt : reset < pat.length := by
               dsimp [reset]
               simpa using (hbuildSpec h0).2.2.2
             rw [pendingMatches_cons (hpat := h0), if_pos hhit]
-            have hbranch :
-                (match some k' with
-                | none =>
-                    (kmpSearchPositionsAux ts (pref.length + 1) 0 pat
-                      ((buildLPS pat).eval Comparison.natCost) []).eval Comparison.natCost
-                | some k' =>
-                    have nextK := k' + 1
-                    if nextK = pat.length then
-                      have start := pref.length + 1 - pat.length
-                      have reset :=
-                        match ((buildLPS pat).eval Comparison.natCost)[pat.length]? with
-                        | some suffixLen => Int.toNat suffixLen
-                        | none => 0
-                      (kmpSearchPositionsAux ts (pref.length + 1) reset pat
-                        ((buildLPS pat).eval Comparison.natCost) [start]).eval Comparison.natCost
-                    else
-                      (kmpSearchPositionsAux ts (pref.length + 1) nextK pat
-                        ((buildLPS pat).eval Comparison.natCost) []).eval Comparison.natCost) =
-                  (kmpSearchPositionsAux ts (pref.length + 1) reset pat
-                    ((buildLPS pat).eval Comparison.natCost)
-                    [pref.length + 1 - pat.length]).eval Comparison.natCost := by
-              dsimp [reset]
-              rw [if_pos hfull]
-            rw [hbranch]
+            dsimp [reset]
+            rw [if_pos hfull]
             rw [kmpSearchPositionsAux_eval_append_acc]
             simp
             simpa using ih (pref := pref ++ [t]) (k := reset) hresetLt hresetState
