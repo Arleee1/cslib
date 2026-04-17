@@ -47,11 +47,7 @@ def innerLPSWhile (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int
       else do
         let nextCnd := table[(Int.toNat cnd)]'hcndTable
         have hnextPat : Int.toNat nextCnd < pat.length := htableBound (Int.toNat cnd) hcndTable
-        have hnextTable : Int.toNat nextCnd < table.length := by
-          calc
-            Int.toNat nextCnd < pat.length := hnextPat
-            _ < pat.length + 1 := Nat.lt_succ_self _
-            _ = table.length := htableLen.symm
+        have hnextTable : Int.toNat nextCnd < table.length := by omega
         innerLPSWhile fuel pos nextCnd pat table hpos hnextPat hnextTable htableLen htableBound
 
 def LPSWhile (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
@@ -70,11 +66,7 @@ def LPSWhile (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
         else
           let nextCnd := table[(Int.toNat cnd)]'hcndTable
           have hnextPat : Int.toNat nextCnd < pat.length := htableBound (Int.toNat cnd) hcndTable
-          have hnextTable : Int.toNat nextCnd < table.length := by
-            calc
-              Int.toNat nextCnd < pat.length := hnextPat
-              _ < pat.length + 1 := Nat.lt_succ_self _
-              _ = table.length := htableLen.symm
+          have hnextTable : Int.toNat nextCnd < table.length := by omega
           innerLPSWhile table.length pos nextCnd pat table
             hpos hnextPat hnextTable htableLen htableBound
       let entry : Int :=
@@ -84,11 +76,7 @@ def LPSWhile (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
           cnd
       let table' := table.set pos entry
       let nextCnd := fallbackCnd + 1
-      have hposTable : pos < table.length := by
-        calc
-          pos < pat.length := hpos
-          _ < pat.length + 1 := Nat.lt_succ_self _
-          _ = table.length := htableLen.symm
+      have hposTable : pos < table.length := by omega
       have htableLen' : table'.length = pat.length + 1 := by
         simp only [List.length_set, htableLen, table']
       have hentryPat : Int.toNat entry < pat.length := by
@@ -114,11 +102,7 @@ def LPSWhile (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
           exact htableBound i (by simpa only [List.length_set, table'] using hi)
       if hnextPos : pos + 1 < pat.length then
         if hnextCndPat : Int.toNat nextCnd < pat.length then
-          have hnextCndTable : Int.toNat nextCnd < table'.length := by
-            calc
-              Int.toNat nextCnd < pat.length := hnextCndPat
-              _ < pat.length + 1 := Nat.lt_succ_self _
-              _ = table'.length := htableLen'.symm
+          have hnextCndTable : Int.toNat nextCnd < table'.length := by omega
           LPSWhile fuel (pos + 1) nextCnd pat table'
             hnextPos hnextCndPat hnextCndTable htableLen' htableBound'
         else
@@ -228,6 +212,14 @@ def kmpSearchPositions (pat txt : List α) : Prog (Comparison α) (List Nat) := 
       kmpSearchPositionsAux txt 0 0 pat table []
 
 
+private lemma initTable0_bound (pat : List α) (h : 0 < pat.length) :
+    let table0 : List Int := -1 :: List.replicate pat.length 0
+    (∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi) < pat.length) ∧
+    (∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi) ∧
+    (∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi + 1) ≤ i) ∧
+    table0.length = pat.length + 1 := by
+  refine ⟨?_, ?_, ?_, by simp⟩ <;> (intro i hi; cases i <;> simp [h])
+
 section TimeComplexity
 
 
@@ -245,14 +237,7 @@ private lemma nextCnd_pat_table_bounds
       Int.toNat (table[i]'hi) < pat.length) :
     let nextCnd := table[(Int.toNat cnd)]'hcndTable
     Int.toNat nextCnd < pat.length ∧ Int.toNat nextCnd < table.length := by
-  dsimp
-  constructor
-  · exact htableBound (Int.toNat cnd) hcndTable
-  · calc
-      Int.toNat (table[(Int.toNat cnd)]'hcndTable) < pat.length :=
-        htableBound (Int.toNat cnd) hcndTable
-      _ < pat.length + 1 := Nat.lt_succ_self _
-      _ = table.length := htableLen.symm
+  exact ⟨htableBound _ hcndTable, by have := htableBound _ hcndTable; omega⟩
 
 private lemma innerLPSWhile_time_eval_sum_zero_negOne [BEq α]
     (fuel pos : Nat) (pat : List α) (table : List Int)
@@ -301,8 +286,7 @@ private lemma innerLPSWhile_eval_bounds [BEq α]
         · simp [innerLPSWhile, Prog.eval]
       · have hnextPat : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < pat.length :=
           htableBound (Int.toNat cnd) hcndTable
-        have hnextTable : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < table.length := by
-          omega
+        have hnextTable : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < table.length := by omega
         have hnextLower : -1 ≤ table[(Int.toNat cnd)]'hcndTable :=
           htableLower (Int.toNat cnd) hcndTable
         by_cases hcmp : pat[pos]'hpos == pat[(Int.toNat cnd)]'hcndPat
@@ -316,10 +300,6 @@ private lemma innerLPSWhile_eval_bounds [BEq α]
               (ih pos (table[(Int.toNat cnd)]'hcndTable) hpos hnextPat hnextTable
                 hnextLower).1
             have hnextEq : table[(Int.toNat cnd)]'hcndTable = -1 := by omega
-            have hnextPat' : Int.toNat (-1 : Int) < pat.length := by
-              simpa [hnextEq] using hnextPat
-            have hnextTable' : Int.toNat (-1 : Int) < table.length := by
-              simpa [hnextEq] using hnextTable
             have hinnerZero :
                 (innerLPSWhile fuel pos (table[(Int.toNat cnd)]'hcndTable) pat table
                   hpos hnextPat hnextTable htableLen htableBound).time
@@ -330,7 +310,8 @@ private lemma innerLPSWhile_eval_bounds [BEq α]
                     Comparison.natCost + 1) = 0 := by
               simpa [hnextEq] using
                 innerLPSWhile_time_eval_sum_zero_negOne
-                  fuel pos pat table hpos hnextPat' hnextTable' htableLen htableBound
+                  fuel pos pat table hpos (by simpa [hnextEq] using hnextPat)
+                  (by simpa [hnextEq] using hnextTable) htableLen htableBound
             constructor
             · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using hrecLower
             · simp [innerLPSWhile, Prog.eval, Prog.time, hcndNeg, hcmp, hnextEq] at hinnerZero ⊢
@@ -358,8 +339,7 @@ private lemma table_set_bound {pat : List α} {table : List Int} {pos : Nat} {v 
     Int.toNat ((table.set pos v)[i]'hi) < pat.length := by
   simp only [List.length_set] at hi
   by_cases heq : i = pos
-  · subst heq
-    simpa only [List.getElem_set_self] using hv
+  · subst heq; simpa using hv
   · rw [List.getElem_set_of_ne (by omega)]; exact htableBound i (by omega)
 
 /-- Helper: `List.set` preserves lower bounds. -/
@@ -370,8 +350,7 @@ private lemma table_set_lower {table : List Int} {pos : Nat} {v : Int}
     -1 ≤ (table.set pos v)[i]'hi := by
   simp only [List.length_set] at hi
   by_cases heq : i = pos
-  · subst heq
-    simpa only [List.getElem_set_self] using hv
+  · subst heq; simpa using hv
   · rw [List.getElem_set_of_ne (by omega)]; exact htableLower i (by omega)
 
 /-- Helper: `List.set` preserves the step invariant. -/
@@ -382,8 +361,7 @@ private lemma table_set_step {table : List Int} {pos : Nat} {v : Int}
     Int.toNat ((table.set pos v)[i]'hi + 1) ≤ i := by
   simp only [List.length_set] at hi
   by_cases heq : i = pos
-  · subst heq
-    simpa only [List.getElem_set_self] using hv
+  · subst heq; simpa using hv
   · rw [List.getElem_set_of_ne (by omega)]; exact htableStep i (by omega)
 
 private lemma LPSWhile_time_complexity_upper_bound [BEq α]
@@ -411,9 +389,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       Comparison.natCost_cost, Comparison.natCost_evalQuery]
     have hposTable : pos < table.length := by omega
     have hcndSucc := int_toNat_add_one_eq hcndNonneg
-    have hcndLePos : Int.toNat cnd ≤ pos := by
-      rw [hcndSucc] at hcndStep
-      omega
+    have hcndLePos : Int.toNat cnd ≤ pos := by omega
     split_ifs with hcmp hpos' hcndPat'
     · -- cmp = true, pos + 1 < pat.length, nextCnd in range: recurse
       have hentryStep : Int.toNat (table[(Int.toNat cnd)]'hcndTable + 1) ≤ pos :=
@@ -435,10 +411,8 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       let nextCnd := table[(Int.toNat cnd)]'hcndTable
       have hnext := nextCnd_pat_table_bounds (pat := pat) (table := table)
         hcndTable htableLen htableBound
-      have hnextPat : Int.toNat nextCnd < pat.length := by
-        simpa [nextCnd] using hnext.1
-      have hnextTable : Int.toNat nextCnd < table.length := by
-        simpa [nextCnd] using hnext.2
+      have hnextPat : Int.toNat nextCnd < pat.length := by simpa [nextCnd] using hnext.1
+      have hnextTable : Int.toNat nextCnd < table.length := by simpa [nextCnd] using hnext.2
       have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
       set inner : Prog (Comparison α) Int :=
         innerLPSWhile table.length pos nextCnd pat table
@@ -447,34 +421,26 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
         table.length pos nextCnd pat table
         hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).1
       have hnextNonneg : 0 ≤ inner.eval Comparison.natCost + 1 := by
-        have hinnerLower' : -1 ≤ inner.eval Comparison.natCost := by
-          simpa [inner] using hinnerLower
+        have : -1 ≤ inner.eval Comparison.natCost := by simpa [inner] using hinnerLower
         omega
       have hinner' :
           inner.time Comparison.natCost +
             Int.toNat (inner.eval Comparison.natCost + 1) ≤ Int.toNat cnd + 1 := by
         by_cases hnextNeg : nextCnd < 0
         · have hnextEq : nextCnd = -1 := by omega
-          have hnextPat' : Int.toNat (-1 : Int) < pat.length := by
-            simpa [hnextEq] using hnextPat
-          have hnextTable' : Int.toNat (-1 : Int) < table.length := by
-            simpa [hnextEq] using hnextTable
-          have hinnerZero :
-              inner.time Comparison.natCost +
-                Int.toNat (inner.eval Comparison.natCost + 1) = 0 := by
-            simpa [inner, hnextEq] using
-              innerLPSWhile_time_eval_sum_zero_negOne
-                table.length pos pat table hpos hnextPat' hnextTable' htableLen htableBound
-          rw [hinnerZero]
+          have : inner.time Comparison.natCost +
+              Int.toNat (inner.eval Comparison.natCost + 1) = 0 := by
+            simpa [inner, hnextEq] using innerLPSWhile_time_eval_sum_zero_negOne
+              table.length pos pat table hpos (by simpa [hnextEq] using hnextPat)
+              (by simpa [hnextEq] using hnextTable) htableLen htableBound
           omega
         · have hnextNonneg : 0 ≤ nextCnd := by omega
           have hstep' : Int.toNat nextCnd + 1 ≤ Int.toNat cnd := by
             rw [← int_toNat_add_one_eq hnextNonneg]
             simpa [nextCnd] using htableStep (Int.toNat cnd) hcndTable
-          have hinnerBound :
-              inner.time Comparison.natCost +
-                Int.toNat (inner.eval Comparison.natCost + 1) ≤
-                  Int.toNat nextCnd + 2 := by
+          have : inner.time Comparison.natCost +
+              Int.toNat (inner.eval Comparison.natCost + 1) ≤
+                Int.toNat nextCnd + 2 := by
             simpa [inner] using (innerLPSWhile_eval_bounds
               table.length pos nextCnd pat table
               hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).2
@@ -498,10 +464,8 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       let nextCnd := table[(Int.toNat cnd)]'hcndTable
       have hnext := nextCnd_pat_table_bounds (pat := pat) (table := table)
         hcndTable htableLen htableBound
-      have hnextPat : Int.toNat nextCnd < pat.length := by
-        simpa [nextCnd] using hnext.1
-      have hnextTable : Int.toNat nextCnd < table.length := by
-        simpa [nextCnd] using hnext.2
+      have hnextPat : Int.toNat nextCnd < pat.length := by simpa [nextCnd] using hnext.1
+      have hnextTable : Int.toNat nextCnd < table.length := by simpa [nextCnd] using hnext.2
       have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
       set inner : Prog (Comparison α) Int :=
         innerLPSWhile table.length pos nextCnd pat table
@@ -511,26 +475,19 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
             Int.toNat (inner.eval Comparison.natCost + 1) ≤ Int.toNat cnd + 1 := by
         by_cases hnextNeg : nextCnd < 0
         · have hnextEq : nextCnd = -1 := by omega
-          have hnextPat' : Int.toNat (-1 : Int) < pat.length := by
-            simpa [hnextEq] using hnextPat
-          have hnextTable' : Int.toNat (-1 : Int) < table.length := by
-            simpa [hnextEq] using hnextTable
-          have hinnerZero :
-              inner.time Comparison.natCost +
-                Int.toNat (inner.eval Comparison.natCost + 1) = 0 := by
-            simpa [inner, hnextEq] using
-              innerLPSWhile_time_eval_sum_zero_negOne
-                table.length pos pat table hpos hnextPat' hnextTable' htableLen htableBound
-          rw [hinnerZero]
+          have : inner.time Comparison.natCost +
+              Int.toNat (inner.eval Comparison.natCost + 1) = 0 := by
+            simpa [inner, hnextEq] using innerLPSWhile_time_eval_sum_zero_negOne
+              table.length pos pat table hpos (by simpa [hnextEq] using hnextPat)
+              (by simpa [hnextEq] using hnextTable) htableLen htableBound
           omega
         · have hnextNonneg : 0 ≤ nextCnd := by omega
           have hstep' : Int.toNat nextCnd + 1 ≤ Int.toNat cnd := by
             rw [← int_toNat_add_one_eq hnextNonneg]
             simpa [nextCnd] using htableStep (Int.toNat cnd) hcndTable
-          have hinnerBound :
-              inner.time Comparison.natCost +
-                Int.toNat (inner.eval Comparison.natCost + 1) ≤
-                  Int.toNat nextCnd + 2 := by
+          have : inner.time Comparison.natCost +
+              Int.toNat (inner.eval Comparison.natCost + 1) ≤
+                Int.toNat nextCnd + 2 := by
             simpa [inner] using (innerLPSWhile_eval_bounds
               table.length pos nextCnd pat table
               hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).2
@@ -552,32 +509,13 @@ theorem buildLPS_time_complexity_upper_bound [BEq α]
       | cons y xs =>
           let pat' := x :: y :: xs
           let table0 : List Int := -1 :: List.replicate pat'.length 0
-          have htableBound :
-              ∀ (i : Nat) (hi : i < table0.length),
-              Int.toNat (table0[i]'hi) < pat'.length := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableLower :
-              ∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableStep :
-              ∀ (i : Nat) (hi : i < table0.length),
-              Int.toNat (table0[i]'hi + 1) ≤ i := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htime :=
+          rcases initTable0_bound pat' (by simp [pat']) with
+            ⟨htableBound, htableLower, htableStep, _⟩
+          simpa [buildLPS, pat', table0] using
             LPSWhile_time_complexity_upper_bound (pat'.length - 1) 1 0 pat' table0
-              (by simp [pat'])
-              (by simp [pat'])
-              (by simp [pat', table0])
-              (by simp [pat', table0])
-              htableBound
-              (by omega)
-              (by simp)
-              htableLower
-              htableStep
-          simpa [buildLPS, pat', table0] using htime
+              (by simp [pat']) (by simp [pat']) (by simp [pat', table0])
+              (by simp [pat', table0]) htableBound (by omega) (by simp)
+              htableLower htableStep
 
 end TimeComplexity
 
@@ -621,30 +559,17 @@ private def MatchingFrontier (pat : List α) (n : Nat) (hn : n < pat.length) (l 
     ∀ l', (hl' : Border pat n l') →
       pat[n]'hn = pat[l']'(lt_trans hl'.1 hn) → l' ≤ l
 
-private lemma border_zero {pat : List α} {n : Nat} (hn : 0 < n) : Border pat n 0 := by
-  exact ⟨by simpa using hn, by simp⟩
+private lemma border_zero {pat : List α} {n : Nat} (hn : 0 < n) : Border pat n 0 :=
+  ⟨hn, by simp⟩
 
 private lemma border_trans {pat : List α} {n c l : Nat}
     (hcn : Border pat n c) (hlc : Border pat c l) : Border pat n l := by
-  rcases hcn with ⟨hcnlt, hcn⟩
-  rcases hlc with ⟨hlclt, hlc⟩
-  constructor
-  · omega
-  · rw [hlc, hcn]
-    rw [List.drop_drop]
-    congr
-    omega
+  rcases hcn with ⟨hclt, hcn⟩; rcases hlc with ⟨hllt, hlc⟩
+  exact ⟨by omega, by rw [hlc, hcn, List.drop_drop]; congr 1; omega⟩
 
 private lemma border_of_longest_prefix {pat : List α} {n c l : Nat}
     (hcn : Border pat n c) (hl : Border pat n l) (hlt : l < c) : Border pat c l := by
-  rcases hcn with ⟨_, hcn⟩
-  rcases hl with ⟨_, hl⟩
-  constructor
-  · exact hlt
-  · rw [hcn]
-    rw [List.drop_drop]
-    have : n - c + (c - l) = n - l := by omega
-    simpa [this] using hl
+  exact ⟨hlt, by rw [hcn.2, List.drop_drop]; convert hl.2 using 2; have := hcn.1; omega⟩
 
 private lemma border_extend [BEq α] {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hl : l < pat.length)
@@ -692,56 +617,36 @@ private lemma longestBorder_extend [BEq α] {pat : List α} {n l : Nat}
     (hcmp : pat[n]'hn = pat[l]'hl) :
     LongestBorder pat (n + 1) (l + 1) := by
   rcases hlong with ⟨hlBorder, hlMax⟩
-  constructor
-  · exact border_extend hn hl hlBorder hcmp
-  · intro l' hl'
-    cases l' with
-    | zero =>
-        omega
-    | succ l'' =>
-        have hl'' : l'' < pat.length := by
-          have : l'' + 1 < n + 1 := hl'.1
-          omega
-        have hprev := border_prev hn hl'' hl'
-        have hle : l'' ≤ l := hlMax l'' hprev.1
-        omega
+  refine ⟨border_extend hn hl hlBorder hcmp, fun l' hl' => ?_⟩
+  cases l' with
+  | zero => omega
+  | succ l'' =>
+    have hprev := border_prev hn (show l'' < pat.length by have := hl'.1; omega) hl'
+    exact Nat.succ_le_succ (hlMax l'' hprev.1)
 
 private lemma bestMatchingBorder_to_longest [BEq α] {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hl : l < pat.length)
     (hbest : BestMatchingBorder pat n hn l) :
     LongestBorder pat (n + 1) (l + 1) := by
   rcases hbest with ⟨hlBorder, hcmp, hlMax⟩
-  constructor
-  · exact border_extend hn hl hlBorder hcmp
-  · intro l' hl'
-    cases l' with
-    | zero =>
-        omega
-    | succ l'' =>
-        have hl'' : l'' < pat.length := by
-          have : l'' + 1 < n + 1 := hl'.1
-          omega
-        have hprev := border_prev hn hl'' hl'
-        have hle : l'' ≤ l := hlMax l'' hprev.1 hprev.2
-        omega
+  refine ⟨border_extend hn hl hlBorder hcmp, fun l' hl' => ?_⟩
+  cases l' with
+  | zero => omega
+  | succ l'' =>
+    have hprev := border_prev hn (show l'' < pat.length by have := hl'.1; omega) hl'
+    exact Nat.succ_le_succ (hlMax l'' hprev.1 hprev.2)
 
 private lemma no_matching_border_to_longest_zero [BEq α] {pat : List α} {n : Nat}
     (hn : n < pat.length)
     (hnone : ∀ l, (hl : Border pat n l) →
       pat[n]'hn ≠ pat[l]'(lt_trans hl.1 hn)) :
     LongestBorder pat (n + 1) 0 := by
-  constructor
-  · exact border_zero (Nat.succ_pos _)
-  · intro l' hl'
-    cases l' with
-    | zero =>
-        omega
-    | succ l'' =>
-        have hl'' : l'' < pat.length := by
-          have : l'' + 1 < n + 1 := hl'.1
-          omega
-        have hprev := border_prev hn hl'' hl'
-        exact False.elim (hnone l'' hprev.1 hprev.2)
+  refine ⟨border_zero (Nat.succ_pos _), fun l' hl' => ?_⟩
+  cases l' with
+  | zero => omega
+  | succ l'' =>
+    have hprev := border_prev hn (show l'' < pat.length by have := hl'.1; omega) hl'
+    exact absurd hprev.2 (hnone l'' hprev.1)
 
 private lemma failure_transfer_of_eq [BEq α] {pat : List α} {pos c : Nat} {v : Int}
     (hpos : pos < pat.length) (hc : c < pat.length)
@@ -803,7 +708,7 @@ private lemma failureEntry_zero [BEq α] {pat : List α} (h0 : 0 < pat.length) :
   unfold FailureEntry
   rw [dif_pos (by decide : (-1 : Int) < 0)]
   intro l hl
-  exact False.elim (Nat.not_lt_zero _ hl.1)
+  exact absurd hl.1 (Nat.not_lt_zero _)
 
 private lemma failureEntry_target_lt [BEq α] {pat : List α} {k : Nat} {hk : k < pat.length}
     {v : Int} (hv : FailureEntry pat k hk v) (hnonneg : 0 ≤ v) :
@@ -819,32 +724,20 @@ private lemma failureEntry_target_lt [BEq α] {pat : List α} {k : Nat} {hk : k 
   exact hnBorder.1
 
 private lemma longestBorder_one {pat : List α} :
-    LongestBorder pat 1 0 := by
-  constructor
-  · exact border_zero (Nat.succ_pos _)
-  · intro l hl
-    cases l with
-    | zero =>
-        exact Nat.zero_le 0
-    | succ l =>
-        exact False.elim (by
-          rcases hl with ⟨hlt, _⟩
-          omega)
+    LongestBorder pat 1 0 :=
+  ⟨border_zero (Nat.succ_pos _), fun _ hl => Nat.le_of_lt_succ hl.1⟩
 
 private lemma longestBorder_to_matchingFrontier {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hlong : LongestBorder pat n l) :
-    MatchingFrontier pat n hn l := by
-  rcases hlong with ⟨hlBorder, hlMax⟩
-  exact ⟨hlBorder, fun l' hl' _ => hlMax l' hl'⟩
+    MatchingFrontier pat n hn l :=
+  ⟨hlong.1, fun l' hl' _ => hlong.2 l' hl'⟩
 
 private lemma matchingFrontier_to_best [BEq α] {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hl : l < pat.length)
     (hfront : MatchingFrontier pat n hn l)
     (hcmp : pat[n]'hn = pat[l]'hl) :
-    BestMatchingBorder pat n hn l := by
-  rcases hfront with ⟨hlBorder, hlMax⟩
-  refine ⟨hlBorder, ?_, hlMax⟩
-  simpa using hcmp
+    BestMatchingBorder pat n hn l :=
+  ⟨hfront.1, by simpa using hcmp, hfront.2⟩
 
 private lemma no_matching_of_failure_neg [BEq α] {pat : List α} {pos c : Nat} {v : Int}
     (hpos : pos < pat.length)
@@ -1344,10 +1237,8 @@ private lemma LPSWhile_eval_invariant [BEq α] [LawfulBEq α]
             (LPSWhile (fuel + 1) pos cnd pat table
               hpos hcndPat hcndTable htableLen htableBound).eval Comparison.natCost =
             (table', nextCnd) := by
-          by_cases hcmp : pat[pos]'hpos == pat[Int.toNat cnd]'hcndPat
-          · simp [LPSWhile, Prog.eval, entry, table', nextCnd, lpsStepEntry, lpsStepFallback,
-              hnextPos, hcmp]
-          · simp [LPSWhile, Prog.eval, entry, table', nextCnd, lpsStepEntry, lpsStepFallback,
+          rcases Decidable.em (pat[pos]'hpos == pat[Int.toNat cnd]'hcndPat) with hcmp | hcmp <;>
+            simp [LPSWhile, Prog.eval, entry, table', nextCnd, lpsStepEntry, lpsStepFallback,
               hnextPos, hcmp]
         simpa [heval] using hres
 
@@ -1370,13 +1261,9 @@ private lemma LPSWhile_final [BEq α] [LawfulBEq α]
       FailurePrefix pat table' pat.length (by omega) hlen ∧
       0 ≤ cnd' ∧
       LongestBorder pat pat.length (Int.toNat cnd') := by
-  have hinv : LPSInvariant pat pos cnd table hpos hcndPat htableLen :=
-    ⟨hcndNonneg, hprefix, hlong⟩
-  have hremain' : fuel + pos = pat.length := by
-    simpa [Nat.add_comm] using hremain
   rcases LPSWhile_eval_invariant fuel pos cnd pat table
-      hpos hcndPat hcndTable htableLen htableBound hremain' hinv hcndStep
-      htableLower htableStep with
+      hpos hcndPat hcndTable htableLen htableBound (by omega)
+      ⟨hcndNonneg, hprefix, hlong⟩ hcndStep htableLower htableStep with
     ⟨hlen, hprefix', _, _, _, hcndNonneg', hlong'⟩
   exact ⟨hlen, hprefix', hcndNonneg', hlong'⟩
 
@@ -1419,28 +1306,17 @@ private lemma buildLPS_failurePrefix [BEq α] [LawfulBEq α] {pat : List α} (h1
           have hcndPat : Int.toNat (0 : Int) < pat'.length := by simp [pat']
           have hcndTable : Int.toNat (0 : Int) < table0.length := by simp [pat', table0]
           have htableLen : table0.length = pat'.length + 1 := by simp [pat', table0]
-          have htableBound :
-              ∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi) < pat'.length := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableLower :
-              ∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableStep :
-              ∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi + 1) ≤ i := by
-            intro i hi
-            cases i <;> simp [pat', table0]
+          rcases initTable0_bound pat' (by simp [pat']) with
+            ⟨htableBound, htableLower, htableStep, _⟩
           have hinit : FailurePrefix pat' table0 1 hpos.le htableLen := by
             simpa [pat', table0] using
-              initial_failurePrefix (pat := pat') (show 0 < pat'.length by simp [pat'])
-          have hremain : 1 + (ys.length + 1) = pat'.length := by
-            simp [pat', Nat.add_comm, Nat.add_left_comm]
-          have hfinal := LPSWhile_final (ys.length + 1) 1 0 pat' table0
+              initial_failurePrefix (pat := pat') (by simp [pat'])
+          rcases LPSWhile_final (ys.length + 1) 1 0 pat' table0
             hpos hcndPat hcndTable htableLen htableBound
-            (by omega) (by simp) hinit longestBorder_one htableLower htableStep
-            hremain
-          rcases hfinal with ⟨hlen, hprefix, _, _⟩
+            (by omega) (by simp) hinit longestBorder_one
+            htableLower htableStep
+            (by simp [pat', Nat.add_comm, Nat.add_left_comm])
+            with ⟨hlen, hprefix, _, _⟩
           let res : List Int × Int :=
             (LPSWhile (ys.length + 1) 1 0 pat' table0
               hpos hcndPat hcndTable htableLen htableBound).eval Comparison.natCost
@@ -1480,9 +1356,8 @@ private lemma buildLPS_failurePrefix_all [BEq α] [LawfulBEq α] (pat : List α)
             (buildLPS_failurePrefix (pat := x :: y :: ys) (h1 := by simp))
 
 private lemma buildLPS_length [BEq α] [LawfulBEq α] (pat : List α) :
-    ((buildLPS pat).eval Comparison.natCost).length = pat.length + 1 := by
-  rcases buildLPS_failurePrefix_all (pat := pat) with ⟨hlen, _⟩
-  exact hlen
+    ((buildLPS pat).eval Comparison.natCost).length = pat.length + 1 :=
+  (buildLPS_failurePrefix_all (pat := pat)).1
 
 private lemma buildLPS_sentinel_longest_nontrivial [BEq α] [LawfulBEq α]
     {pat : List α} (h1 : 1 < pat.length) :
@@ -1507,28 +1382,17 @@ private lemma buildLPS_sentinel_longest_nontrivial [BEq α] [LawfulBEq α]
           have hcndPat : Int.toNat (0 : Int) < pat'.length := by simp [pat']
           have hcndTable : Int.toNat (0 : Int) < table0.length := by simp [pat', table0]
           have htableLen : table0.length = pat'.length + 1 := by simp [pat', table0]
-          have htableBound :
-              ∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi) < pat'.length := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableLower :
-              ∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi := by
-            intro i hi
-            cases i <;> simp [pat', table0]
-          have htableStep :
-              ∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi + 1) ≤ i := by
-            intro i hi
-            cases i <;> simp [pat', table0]
+          rcases initTable0_bound pat' (by simp [pat']) with
+            ⟨htableBound, htableLower, htableStep, _⟩
           have hinit : FailurePrefix pat' table0 1 hpos.le htableLen := by
             simpa [pat', table0] using
-              initial_failurePrefix (pat := pat') (show 0 < pat'.length by simp [pat'])
-          have hremain : 1 + (ys.length + 1) = pat'.length := by
-            simp [pat', Nat.add_comm, Nat.add_left_comm]
-          have hfinal := LPSWhile_final (ys.length + 1) 1 0 pat' table0
+              initial_failurePrefix (pat := pat') (by simp [pat'])
+          rcases LPSWhile_final (ys.length + 1) 1 0 pat' table0
             hpos hcndPat hcndTable htableLen htableBound
-            (by omega) (by simp) hinit longestBorder_one htableLower htableStep
-            hremain
-          rcases hfinal with ⟨hlen, _, hcndNonneg, hlong⟩
+            (by omega) (by simp) hinit longestBorder_one
+            htableLower htableStep
+            (by simp [pat', Nat.add_comm, Nat.add_left_comm])
+            with ⟨hlen, _, hcndNonneg, hlong⟩
           let res : List Int × Int :=
             (LPSWhile (ys.length + 1) 1 0 pat' table0
               hpos hcndPat hcndTable htableLen htableBound).eval Comparison.natCost
@@ -1640,9 +1504,8 @@ private lemma kmpSearchPositionsAux_eval_cons [BEq α]
   | none =>
       simp [kmpSearchPositionsAux, Prog.eval_bind, hmatched]
   | some k' =>
-      by_cases hnext : k' + 1 = pat.length
-      · simp [kmpSearchPositionsAux, Prog.eval_bind, hmatched, hnext]
-      · simp [kmpSearchPositionsAux, Prog.eval_bind, hmatched, hnext]
+      rcases Decidable.em (k' + 1 = pat.length) with hnext | hnext <;>
+        simp [kmpSearchPositionsAux, Prog.eval_bind, hmatched, hnext]
 
 private lemma kmpSearchPositionsAux_eval_append_acc [BEq α]
     (txt : List α) (j k : Nat) (pat : List α) (table : List Int) (accRev : List Nat) :
@@ -1682,8 +1545,8 @@ private lemma failurePrefix_entry_at [BEq α]
     (hTableLen : table.length = pat.length + 1)
     (hprefix : FailurePrefix pat table pat.length (by omega) hTableLen)
     {k : Nat} (hk : k < pat.length) :
-    FailureEntry pat k hk (table[k]'(by omega)) := by
-  simpa [FailurePrefix] using hprefix k hk
+    FailureEntry pat k hk (table[k]'(by omega)) :=
+  hprefix k hk
 
 private lemma getElem_eq_of_getElem?_eq_some
     {xs : List α} {i : Nat} (hi : i < xs.length) {x : α}
@@ -1938,7 +1801,7 @@ private lemma fallbackCandidate_le {pat : List α} {k l : Nat}
     (hCand : FallbackCandidate pat k l) :
     l ≤ k := by
   rcases hCand with rfl | hBorder
-  · exact le_rfl
+  · exact le_refl _
   · exact Nat.le_of_lt hBorder.1
 
 private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
