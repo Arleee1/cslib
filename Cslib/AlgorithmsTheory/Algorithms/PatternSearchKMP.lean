@@ -239,14 +239,6 @@ private lemma int_toNat_add_one_eq {z : Int} (hz : 0 ≤ z) :
   simp
   omega
 
-private lemma int_toNat_add_one_le_of_ge_neg_one {z : Int} (hz : -1 ≤ z) :
-    Int.toNat (z + 1) ≤ Int.toNat z + 1 := by
-  by_cases hnonneg : 0 ≤ z
-  · rw [int_toNat_add_one_eq hnonneg]
-  · have hz' : z = -1 := by omega
-    subst hz'
-    decide
-
 private lemma innerLPSWhile_eval_lower_bound [BEq α]
     (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
     (hpos : pos < pat.length) (hcndPat : Int.toNat cnd < pat.length)
@@ -639,46 +631,6 @@ theorem kmpSearchPositions_eval_nil [BEq α] (txt : List α) :
     (kmpSearchPositions ([] : List α) txt).eval Comparison.natCost =
       PatternSearchAll ([] : List α) txt := by
   simp [kmpSearchPositions, PatternSearchAll]
-
-private lemma isPrefixOf_eq_false_of_length_lt [BEq α] :
-    ∀ {pat txt : List α}, txt.length < pat.length → pat.isPrefixOf txt = false
-  | [], _, h => by simp at h
-  | _ :: _, [], _ => by simp [List.isPrefixOf]
-  | p :: ps, t :: ts, h => by
-      have htail : ts.length < ps.length := by simpa using h
-      by_cases heq : p == t
-      · simp [List.isPrefixOf, heq, isPrefixOf_eq_false_of_length_lt htail]
-      · simp [List.isPrefixOf, heq]
-
-private lemma shift_filter_gen [BEq α] (pat : List α) (t : α) (ts : List α) (l : List Nat) :
-    List.filter (fun i => pat.isPrefixOf (List.drop i (t :: ts))) (List.map Nat.succ l) =
-      List.map Nat.succ (List.filter (fun i => pat.isPrefixOf (List.drop i ts)) l) := by
-  induction l with
-  | nil => simp
-  | cons a l ih =>
-      by_cases h : pat.isPrefixOf (List.drop a ts) = true <;> simp [ih, h]
-
-private lemma patternSearchAll_cons [BEq α] (pat : List α) (t : α) (ts : List α) :
-    PatternSearchAll pat (t :: ts) =
-      if pat.isPrefixOf (t :: ts) then
-        0 :: (PatternSearchAll pat ts).map Nat.succ
-      else
-        (PatternSearchAll pat ts).map Nat.succ := by
-  simp only [PatternSearchAll, List.length_cons, List.range_succ_eq_map, List.filter_cons]
-  rw [shift_filter_gen]
-  by_cases h : pat.isPrefixOf (t :: ts) = true <;> simp [List.drop, h]
-
-private lemma patternSearchAll_eq_nil_of_length_lt [BEq α] :
-    ∀ {pat txt : List α}, txt.length < pat.length → PatternSearchAll pat txt = []
-  | [], _, h => by simp at h
-  | _ :: _, [], _ => by simp [PatternSearchAll]
-  | p :: ps, t :: ts, h => by
-      have hfalse : (p :: ps).isPrefixOf (t :: ts) = false :=
-        isPrefixOf_eq_false_of_length_lt h
-      have htail : ts.length < (p :: ps).length := by
-        exact lt_trans (Nat.lt_succ_self _) h
-      rw [patternSearchAll_cons]
-      simp [hfalse, patternSearchAll_eq_nil_of_length_lt htail]
 
 private def Border (pat : List α) (n l : Nat) : Prop :=
   l < n ∧ pat.take l = (pat.take n).drop (n - l)
