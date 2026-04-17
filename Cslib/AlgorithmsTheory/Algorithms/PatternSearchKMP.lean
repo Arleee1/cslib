@@ -2419,6 +2419,237 @@ theorem kmpPatternSearch_eval [BEq α] [LawfulBEq α] (pat txt : List α) :
             (pat := p :: ps) (pref := []) (txt := txt) (k := 0)
             (by simp) (by simp) hFrontierNil)
 
+section SearchTimeComplexity
+
+private def fallbackPotential : Option Nat → Nat
+  | none => 0
+  | some k' => k' + 1
+
+private lemma kmpSearchFallback_time_potential_upper_bound [BEq α] [LawfulBEq α]
+    {pat : List α} {table : List Int}
+    (hTableLen : table.length = pat.length + 1)
+    (hprefix : FailurePrefix pat table pat.length (by omega) hTableLen)
+    (t : α) :
+    ∀ (fuel k : Nat), (hk : k < pat.length) → k + 1 ≤ fuel →
+      (kmpSearchFallback fuel t k pat table).time Comparison.natCost +
+        fallbackPotential ((kmpSearchFallback fuel t k pat table).eval Comparison.natCost)
+      ≤ k + 2 := by
+  intro fuel
+  induction fuel with
+  | zero =>
+      intro k hk hFuel
+      omega
+  | succ fuel ih =>
+      intro k hk hFuel
+      cases hpk : pat[k]? with
+      | none =>
+          exfalso
+          have hpkSome : pat[k]? = some (pat[k]'hk) := by
+            exact List.getElem?_eq_getElem (l := pat) (i := k) hk
+          simp [hpk] at hpkSome
+      | some pk =>
+          by_cases hcmp : pk == t
+          · simp [kmpSearchFallback, hpk, hcmp, fallbackPotential]
+            omega
+          · have hkTable : k < table.length := by omega
+            cases hnext : table[k]? with
+            | none =>
+                exfalso
+                have hnextSome : table[k]? = some (table[k]'hkTable) := by
+                  exact List.getElem?_eq_getElem (l := table) (i := k) hkTable
+                simp [hnext] at hnextSome
+            | some nextK =>
+                by_cases hneg : nextK < 0
+                · simp [kmpSearchFallback, hpk, hcmp, hnext, hneg, fallbackPotential]
+                · have hnonneg : 0 ≤ nextK := by omega
+                  have hEntry : FailureEntry pat k hk nextK :=
+                    failureEntry_of_table_get? hTableLen hprefix hk hnext
+                  have hkNextLtK : Int.toNat nextK < k :=
+                    failureEntry_target_lt hEntry hnonneg
+                  have hkNext : Int.toNat nextK < pat.length := lt_trans hkNextLtK hk
+                  have hFuelNext : Int.toNat nextK + 1 ≤ fuel := by omega
+                  have hrec := ih (Int.toNat nextK) hkNext hFuelNext
+                  have hstep :
+                      (kmpSearchFallback (fuel + 1) t k pat table).time Comparison.natCost +
+                        fallbackPotential
+                          ((kmpSearchFallback (fuel + 1) t k pat table).eval
+                            Comparison.natCost)
+                        =
+                      1 + ((kmpSearchFallback fuel t (Int.toNat nextK) pat table).time
+                            Comparison.natCost +
+                          fallbackPotential
+                            ((kmpSearchFallback fuel t (Int.toNat nextK) pat table).eval
+                              Comparison.natCost)) := by
+                    simp [kmpSearchFallback, hpk, hcmp, hnext, hneg, fallbackPotential,
+                      Nat.add_assoc]
+                  rw [hstep]
+                  omega
+
+private lemma kmpSearchPositionsAux_time_linear_buildLPS [BEq α] [LawfulBEq α]
+    {pat txt : List α} (h0 : 0 < pat.length)
+    {j k : Nat} (hk : k < pat.length) (accRev : List Nat) :
+    (kmpSearchPositionsAux txt j k pat ((buildLPS pat).eval Comparison.natCost) accRev).time
+      Comparison.natCost ≤ 2 * txt.length + k := by
+  rcases buildLPS_spec (pat := pat) with ⟨hTableLen, hprefix, hbuildSpec⟩
+  set table : List Int := (buildLPS pat).eval Comparison.natCost
+  have hTableLen' : table.length = pat.length + 1 := by
+    simpa [table] using hTableLen
+  have hprefix' : FailurePrefix pat table pat.length (by omega) hTableLen' := by
+    simpa [table] using hprefix
+  have hresetLt :
+      (match table[pat.length]? with
+      | some suffixLen => Int.toNat suffixLen
+      | none => 0) < pat.length := by
+    simpa [table] using (hbuildSpec h0).2.2.2
+  induction txt generalizing j k accRev with
+  | nil =>
+      simp [kmpSearchPositionsAux]
+  | cons t ts ih =>
+      set fallback : Prog (Comparison α) (Option Nat) :=
+        kmpSearchFallback table.length t k pat table
+      have hFallback :
+          fallback.time Comparison.natCost +
+              fallbackPotential (fallback.eval Comparison.natCost) ≤ k + 2 := by
+        simpa [fallback] using
+          (kmpSearchFallback_time_potential_upper_bound
+            (pat := pat) (table := table) hTableLen' hprefix' t table.length k hk (by omega))
+      cases hres : fallback.eval Comparison.natCost with
+      | none =>
+          have hFallbackTime : fallback.time Comparison.natCost ≤ k + 2 := by
+            simpa [fallbackPotential, hres] using hFallback
+          have hrec :=
+            ih (j := j + 1) (k := 0) (by simpa using h0) (accRev := accRev) hprefix'
+          have htime :
+              (kmpSearchPositionsAux (t :: ts) j k pat table accRev).time
+                  Comparison.natCost =
+                fallback.time Comparison.natCost +
+                  (kmpSearchPositionsAux ts (j + 1) 0 pat table accRev).time
+                    Comparison.natCost := by
+            simp [kmpSearchPositionsAux, Prog.time_bind, fallback, hres]
+          rw [htime]
+          have hsum :
+              fallback.time Comparison.natCost +
+                  (kmpSearchPositionsAux ts (j + 1) 0 pat table accRev).time
+                    Comparison.natCost ≤
+                (k + 2) + (2 * ts.length) :=
+            Nat.add_le_add hFallbackTime (by simpa using hrec)
+          calc
+            fallback.time Comparison.natCost +
+                (kmpSearchPositionsAux ts (j + 1) 0 pat table accRev).time
+                  Comparison.natCost ≤
+              (k + 2) + (2 * ts.length) := hsum
+            _ = 2 * (t :: ts).length + k := by
+              simp [Nat.mul_add, Nat.add_assoc, Nat.add_comm]
+      | some k' =>
+          have hspec :
+              FallbackCandidate pat k k' ∧
+                pat[k']? = some t ∧
+                ∀ l, FallbackCandidate pat k l → pat[l]? = some t → l ≤ k' := by
+            simpa [fallback, hres] using
+              (kmpSearchFallback_eval_full_spec
+                (pat := pat) (table := table) hTableLen' hprefix' t hk)
+          have hk'Pat : k' < pat.length := (List.getElem?_eq_some_iff.mp hspec.2.1).1
+          have hFallbackSome : fallback.time Comparison.natCost + (k' + 1) ≤ k + 2 := by
+            simpa [fallbackPotential, hres] using hFallback
+          by_cases hfull : k' + 1 = pat.length
+          · let reset : Nat :=
+              match table[pat.length]? with
+              | some suffixLen => Int.toNat suffixLen
+              | none => 0
+            have hresetLt' : reset < pat.length := by
+              dsimp [reset]
+              simpa using hresetLt
+            have hrec :=
+              ih (j := j + 1) (k := reset) hresetLt'
+                (accRev := (j + 1 - pat.length) :: accRev) hprefix'
+            have htime :
+                (kmpSearchPositionsAux (t :: ts) j k pat table accRev).time
+                    Comparison.natCost =
+                  fallback.time Comparison.natCost +
+                    (kmpSearchPositionsAux ts (j + 1) reset pat table
+                      ((j + 1 - pat.length) :: accRev)).time Comparison.natCost := by
+              simp [kmpSearchPositionsAux, Prog.time_bind, fallback, hres, hfull, reset]
+            rw [htime]
+            have hresetLe : reset ≤ k' + 1 := by
+              dsimp [reset]
+              omega
+            have hFallbackReset : fallback.time Comparison.natCost + reset ≤ k + 2 := by
+              calc
+                fallback.time Comparison.natCost + reset ≤
+                    fallback.time Comparison.natCost + (k' + 1) :=
+                  Nat.add_le_add_left hresetLe _
+                _ ≤ k + 2 := hFallbackSome
+            have hsum :
+                fallback.time Comparison.natCost +
+                    (kmpSearchPositionsAux ts (j + 1) reset pat table
+                      ((j + 1 - pat.length) :: accRev)).time Comparison.natCost ≤
+                  fallback.time Comparison.natCost + (2 * ts.length + reset) :=
+              Nat.add_le_add_left hrec _
+            calc
+              fallback.time Comparison.natCost +
+                  (kmpSearchPositionsAux ts (j + 1) reset pat table
+                    ((j + 1 - pat.length) :: accRev)).time Comparison.natCost ≤
+                fallback.time Comparison.natCost + (2 * ts.length + reset) := hsum
+              _ = 2 * ts.length + (fallback.time Comparison.natCost + reset) := by omega
+              _ ≤ 2 * ts.length + (k + 2) := Nat.add_le_add_left hFallbackReset _
+              _ = 2 * (t :: ts).length + k := by
+                simp [Nat.mul_add, Nat.add_assoc, Nat.add_comm]
+          · have hkNext : k' + 1 < pat.length := by omega
+            have hrec :=
+              ih (j := j + 1) (k := k' + 1) hkNext (accRev := accRev) hprefix'
+            have htime :
+                (kmpSearchPositionsAux (t :: ts) j k pat table accRev).time
+                    Comparison.natCost =
+                  fallback.time Comparison.natCost +
+                    (kmpSearchPositionsAux ts (j + 1) (k' + 1) pat table accRev).time
+                      Comparison.natCost := by
+              simp [kmpSearchPositionsAux, Prog.time_bind, fallback, hres, hfull]
+            rw [htime]
+            have hsum :
+                fallback.time Comparison.natCost +
+                    (kmpSearchPositionsAux ts (j + 1) (k' + 1) pat table accRev).time
+                      Comparison.natCost ≤
+                  fallback.time Comparison.natCost + (2 * ts.length + (k' + 1)) :=
+              Nat.add_le_add_left hrec _
+            calc
+              fallback.time Comparison.natCost +
+                  (kmpSearchPositionsAux ts (j + 1) (k' + 1) pat table accRev).time
+                    Comparison.natCost ≤
+                fallback.time Comparison.natCost + (2 * ts.length + (k' + 1)) := hsum
+              _ = 2 * ts.length + (fallback.time Comparison.natCost + (k' + 1)) := by omega
+              _ ≤ 2 * ts.length + (k + 2) := Nat.add_le_add_left hFallbackSome _
+              _ = 2 * (t :: ts).length + k := by
+                simp [Nat.mul_add, Nat.add_assoc, Nat.add_comm]
+
+theorem kmpSearchPositions_time_complexity_upper_bound [BEq α] [LawfulBEq α]
+    (pat txt : List α) :
+    (kmpSearchPositions pat txt).time Comparison.natCost ≤
+      2 * txt.length + 2 * (pat.length - 1) := by
+  cases pat with
+  | nil =>
+      simp [kmpSearchPositions]
+  | cons p ps =>
+      have haux :
+          (kmpSearchPositionsAux txt 0 0 (p :: ps)
+            ((buildLPS (p :: ps)).eval Comparison.natCost) []).time
+              Comparison.natCost ≤ 2 * txt.length := by
+        simpa using
+          (kmpSearchPositionsAux_time_linear_buildLPS
+            (pat := p :: ps) (txt := txt) (h0 := by simp)
+            (j := 0) (k := 0) (hk := by simp) (accRev := []))
+      have hbuild := buildLPS_time_complexity_upper_bound (pat := p :: ps)
+      have htime :
+          (kmpSearchPositions (p :: ps) txt).time Comparison.natCost =
+            (buildLPS (p :: ps)).time Comparison.natCost +
+              (kmpSearchPositionsAux txt 0 0 (p :: ps)
+                ((buildLPS (p :: ps)).eval Comparison.natCost) []).time
+                  Comparison.natCost := by
+        simp [kmpSearchPositions, Prog.time_bind]
+      rw [htime]
+      omega
+
+end SearchTimeComplexity
+
 end Correctness
 
 end Algorithms
