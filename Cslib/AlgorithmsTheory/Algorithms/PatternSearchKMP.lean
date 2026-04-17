@@ -237,36 +237,7 @@ private lemma int_toNat_add_one_eq {z : Int} (hz : 0 ≤ z) :
   simp
   omega
 
-private lemma innerLPSWhile_eval_lower_bound [BEq α]
-    (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
-    (hpos : pos < pat.length) (hcndPat : Int.toNat cnd < pat.length)
-    (hcndTable : Int.toNat cnd < table.length)
-    (htableLen : table.length = pat.length + 1)
-    (htableBound : ∀ (i : Nat) (hi : i < table.length),
-      Int.toNat (table[i]'hi) < pat.length)
-    (htableLower : ∀ (i : Nat) (hi : i < table.length), -1 ≤ table[i]'hi)
-    (hcndLower : -1 ≤ cnd) :
-    -1 ≤ (innerLPSWhile fuel pos cnd pat table
-      hpos hcndPat hcndTable htableLen htableBound).eval
-      Comparison.natCost := by
-  induction fuel generalizing pos cnd with
-  | zero =>
-      simpa [innerLPSWhile, Prog.eval] using hcndLower
-  | succ fuel ih =>
-      by_cases hcndNeg : cnd < 0
-      · simpa [innerLPSWhile, Prog.eval, hcndNeg] using hcndLower
-      · have hnextPat : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < pat.length :=
-          htableBound (Int.toNat cnd) hcndTable
-        have hnextTable : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < table.length := by
-          omega
-        have hnextLower : -1 ≤ table[(Int.toNat cnd)]'hcndTable :=
-          htableLower (Int.toNat cnd) hcndTable
-        by_cases hcmp : pat[pos]'hpos == pat[(Int.toNat cnd)]'hcndPat
-        · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using hcndLower
-        · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using
-            ih pos (table[(Int.toNat cnd)]'hcndTable) hpos hnextPat hnextTable hnextLower
-
-private lemma innerLPSWhile_time_eval_upper_bound [BEq α]
+private lemma innerLPSWhile_eval_bounds [BEq α]
     (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
     (hpos : pos < pat.length) (hcndPat : Int.toNat cnd < pat.length)
     (hcndTable : Int.toNat cnd < table.length)
@@ -277,21 +248,26 @@ private lemma innerLPSWhile_time_eval_upper_bound [BEq α]
     (htableStep : ∀ (i : Nat) (hi : i < table.length),
       Int.toNat (table[i]'hi + 1) ≤ i)
     (hcndLower : -1 ≤ cnd) :
-    (innerLPSWhile fuel pos cnd pat table
-      hpos hcndPat hcndTable htableLen htableBound).time
-      Comparison.natCost +
+    (-1 ≤ (innerLPSWhile fuel pos cnd pat table
+      hpos hcndPat hcndTable htableLen htableBound).eval Comparison.natCost) ∧
+    ((innerLPSWhile fuel pos cnd pat table
+      hpos hcndPat hcndTable htableLen htableBound).time Comparison.natCost +
       Int.toNat ((innerLPSWhile fuel pos cnd pat table
-        hpos hcndPat hcndTable htableLen htableBound).eval
-        Comparison.natCost + 1) ≤ Int.toNat cnd + 2 := by
+        hpos hcndPat hcndTable htableLen htableBound).eval Comparison.natCost + 1)
+        ≤ Int.toNat cnd + 2) := by
   induction fuel generalizing pos cnd with
   | zero =>
-      simp [innerLPSWhile, Prog.eval]
-      omega
+      constructor
+      · simpa [innerLPSWhile, Prog.eval] using hcndLower
+      · simp [innerLPSWhile, Prog.eval]
+        omega
   | succ fuel ih =>
       by_cases hcndNeg : cnd < 0
       · have hcndEq : cnd = -1 := by omega
         subst hcndEq
-        simp [innerLPSWhile, Prog.eval]
+        constructor
+        · simp [innerLPSWhile, Prog.eval]
+        · simp [innerLPSWhile, Prog.eval]
       · have hnextPat : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < pat.length :=
           htableBound (Int.toNat cnd) hcndTable
         have hnextTable : Int.toNat (table[(Int.toNat cnd)]'hcndTable) < table.length := by
@@ -299,11 +275,16 @@ private lemma innerLPSWhile_time_eval_upper_bound [BEq α]
         have hnextLower : -1 ≤ table[(Int.toNat cnd)]'hcndTable :=
           htableLower (Int.toNat cnd) hcndTable
         by_cases hcmp : pat[pos]'hpos == pat[(Int.toNat cnd)]'hcndPat
-        · simp [innerLPSWhile, Prog.eval, hcndNeg, hcmp]
-          omega
+        · constructor
+          · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using hcndLower
+          · simp [innerLPSWhile, Prog.eval, hcndNeg, hcmp]
+            omega
         · have hstep := htableStep (Int.toNat cnd) hcndTable
           by_cases hnextNeg : table[(Int.toNat cnd)]'hcndTable < 0
-          · have hnextEq : table[(Int.toNat cnd)]'hcndTable = -1 := by omega
+          · have hrecLower :=
+              (ih pos (table[(Int.toNat cnd)]'hcndTable) hpos hnextPat hnextTable
+                hnextLower).1
+            have hnextEq : table[(Int.toNat cnd)]'hcndTable = -1 := by omega
             have hnextPat' : Int.toNat (-1 : Int) < pat.length := by
               simpa [hnextEq] using hnextPat
             have hnextTable' : Int.toNat (-1 : Int) < table.length := by
@@ -325,18 +306,24 @@ private lemma innerLPSWhile_time_eval_upper_bound [BEq α]
                       hpos hnextPat' hnextTable' htableLen htableBound).eval
                       Comparison.natCost + 1) = 0 by
                   cases fuel <;> simp [innerLPSWhile, Prog.eval, Prog.time])
-            simp [innerLPSWhile, Prog.eval, Prog.time, hcndNeg, hcmp, hnextEq] at hinnerZero ⊢
-            omega
+            constructor
+            · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using hrecLower
+            · simp [innerLPSWhile, Prog.eval, Prog.time, hcndNeg, hcmp, hnextEq] at hinnerZero ⊢
+              omega
           · have hnextNonneg : 0 ≤ table[(Int.toNat cnd)]'hcndTable := by omega
             have hstep' :
                 Int.toNat (table[(Int.toNat cnd)]'hcndTable) + 1 ≤ Int.toNat cnd := by
               rw [← int_toNat_add_one_eq hnextNonneg]
               exact hstep
-            have hrec := ih pos (table[(Int.toNat cnd)]'hcndTable) hpos hnextPat
-              hnextTable hnextLower
-            simp [Prog.eval] at hrec
-            simp [innerLPSWhile, Prog.eval, hcndNeg, hcmp]
-            omega
+            have hrec :=
+              ih pos (table[(Int.toNat cnd)]'hcndTable) hpos hnextPat hnextTable
+                hnextLower
+            constructor
+            · simpa [innerLPSWhile, Prog.eval, hcndNeg, hcmp] using hrec.1
+            · have hrecTime := hrec.2
+              simp [Prog.eval] at hrecTime
+              simp [innerLPSWhile, Prog.eval, hcndNeg, hcmp]
+              omega
 
 private lemma innerLPSWhile_time_eval_upper_bound_from_table [BEq α]
     (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
@@ -376,9 +363,9 @@ private lemma innerLPSWhile_time_eval_upper_bound_from_table [BEq α]
       _ < pat.length + 1 := Nat.lt_succ_self _
       _ = table.length := htableLen.symm
   have hnextLower : -1 ≤ nextCnd := htableLower (Int.toNat cnd) hcndTable
-  have hinner := innerLPSWhile_time_eval_upper_bound
+  have hinner := (innerLPSWhile_eval_bounds
     fuel pos nextCnd pat table
-    hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower
+    hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).2
   by_cases hnextNeg : nextCnd < 0
   · have hnextEq : nextCnd = -1 := by omega
     have htimeZero :
@@ -493,9 +480,9 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
       set inner : Prog (Comparison α) Int :=
         innerLPSWhile table.length pos nextCnd pat table
           hpos hnextPat hnextTable htableLen htableBound
-      have hinnerLower := innerLPSWhile_eval_lower_bound
+      have hinnerLower := (innerLPSWhile_eval_bounds
         table.length pos nextCnd pat table
-        hpos hnextPat hnextTable htableLen htableBound htableLower hnextLower
+        hpos hnextPat hnextTable htableLen htableBound htableLower htableStep hnextLower).1
       have hnextNonneg : 0 ≤ inner.eval Comparison.natCost + 1 := by
         have hinnerLower' : -1 ≤ inner.eval Comparison.natCost := by
           simpa [inner] using hinnerLower
@@ -1208,9 +1195,9 @@ private lemma lpsStep_invariant [BEq α] [LawfulBEq α]
           table.length pos prev pat table hpos hprevPat hprevTable hprevTable
           htableLen htableBound hprefix hprevNonneg hfrontPrev
       have hfallbackLower : -1 ≤ fallback := by
-        simpa [fallback] using innerLPSWhile_eval_lower_bound
+        simpa [fallback] using (innerLPSWhile_eval_bounds
           table.length pos prev pat table
-          hpos hprevPat hprevTable htableLen htableBound htableLower hprevLower
+          hpos hprevPat hprevTable htableLen htableBound htableLower htableStep hprevLower).1
       by_cases hfallbackNeg : fallback < 0
       · have hfallbackEq : fallback = -1 := by omega
         have hnoMatch : ∀ l, (hl : Border pat pos l) →
