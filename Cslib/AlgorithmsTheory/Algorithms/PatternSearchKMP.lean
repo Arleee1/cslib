@@ -459,9 +459,7 @@ private lemma failure_of_longest_mismatch [BEq α] {pat : List α} {pos c : Nat}
     (hlong : LongestBorder pat pos c)
     (hcmp : pat[pos]'hpos ≠ pat[c]'hc) :
     FailureEntry pat pos hpos c := by
-  rcases hlong with ⟨hcBorder, hcMax⟩
-  unfold FailureEntry; rw [dif_neg (by simp : ¬ ((c : Int) < 0))]
-  refine ⟨hcBorder, hcmp, fun l hl _ => hcMax l hl⟩
+  grind [FailureEntry, LongestBorder]
 
 private lemma failureEntry_zero [BEq α] {pat : List α} (h0 : 0 < pat.length) :
     FailureEntry pat 0 h0 (-1) := by
@@ -534,10 +532,7 @@ private lemma matchingFrontier_of_failure_pos [BEq α] {pat : List α} {pos c : 
 private lemma initial_failurePrefix [BEq α] {pat : List α} (h0 : 0 < pat.length) :
     FailurePrefix pat (-1 :: List.replicate pat.length 0) 1 (by omega)
       (show (-1 :: List.replicate pat.length 0 : List Int).length = pat.length + 1 by simp) := by
-  intro i hi
-  have : i = 0 := by omega
-  subst this
-  simpa using (failureEntry_zero (pat := pat) h0)
+  grind [FailurePrefix, failureEntry_zero]
 
 private lemma innerLPSWhile_eval_frontier [BEq α] [LawfulBEq α]
     (fuel pos : Nat) (cnd : Int) (pat : List α) (table : List Int)
