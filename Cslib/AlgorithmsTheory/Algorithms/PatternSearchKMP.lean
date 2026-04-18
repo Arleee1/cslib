@@ -303,10 +303,6 @@ private lemma table_set_lower {table : List Int} {pos : Nat} {v : Int}
     (hv : -1 ≤ v)
     (i : Nat) (hi : i < (table.set pos v).length) :
     -1 ≤ (table.set pos v)[i]'hi := by grind
-  -- simp only [List.length_set] at hi
-  -- by_cases heq : i = pos
-  -- · subst heq; simpa using hv
-  -- · rw [List.getElem_set_of_ne (by omega)]; exact htableLower i (by omega)
 
 /-- Helper: `List.set` preserves the step invariant. -/
 private lemma table_set_step {table : List Int} {pos : Nat} {v : Int}
