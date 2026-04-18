@@ -1815,21 +1815,14 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
       cases hres : (kmpSearchFallback ((buildLPS pat).eval Comparison.natCost).length t k pat
           ((buildLPS pat).eval Comparison.natCost)).eval Comparison.natCost with
       | none =>
-          have hstate0 : FrontierState pat (pref ++ [t]) 0 := by
-            simpa [hres] using hstateStep
-          have hnohit :
-              ¬(pat.length ≤ (pref ++ [t]).length ∧
-                pat.isPrefixOf
-                  ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) = true) := by
-            intro hhit
+          rw [pendingMatches_cons (hpat := h0), if_neg (fun hhit => by
             rcases (kmpSearchFallback_eval_some_full_iff_match_start
               (hTableLen := hTableLen) (hprefix := hprefix) (hstate := hstate)
               (hkPat := hkPat) (t := t) (ts := ts)).2 hhit with ⟨k', hk'⟩
             rw [hres] at hk'
-            cases hk'.1
-          rw [pendingMatches_cons (hpat := h0), if_neg hnohit]
+            cases hk'.1)]
           simp
-          simpa using ih (pref := pref ++ [t]) (k := 0) h0 hstate0
+          simpa using ih (pref := pref ++ [t]) (k := 0) h0 (by simpa [hres] using hstateStep)
       | some k' =>
           by_cases hfull : k' + 1 = pat.length
           · have hhit :
@@ -1871,18 +1864,13 @@ private lemma kmpSearchPositionsAux_eval_pendingMatches [BEq α] [LawfulBEq α]
               omega
             have hstateNext : FrontierState pat (pref ++ [t]) (k' + 1) := by
               simpa [hres, hfull] using hstateStep
-            have hnohit :
-                ¬(pat.length ≤ (pref ++ [t]).length ∧
-                  pat.isPrefixOf
-                    ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) = true) := by
-              intro hhit
+            rw [pendingMatches_cons (hpat := h0), if_neg (fun hhit => by
               rcases (kmpSearchFallback_eval_some_full_iff_match_start
                 (hTableLen := hTableLen) (hprefix := hprefix) (hstate := hstate)
                 (hkPat := hkPat) (t := t) (ts := ts)).2 hhit with ⟨k'', hk'', hkfull⟩
               rw [hres] at hk''
               cases hk''
-              exact hfull hkfull
-            rw [pendingMatches_cons (hpat := h0), if_neg hnohit]
+              exact hfull hkfull)]
             simp [hfull]
             simpa using ih (pref := pref ++ [t]) (k := k' + 1) hnextLt hstateNext
 
