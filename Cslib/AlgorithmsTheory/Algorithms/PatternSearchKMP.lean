@@ -1514,50 +1514,35 @@ private lemma kmpSearchFallback_eval_some_full_iff_match_start [BEq α] [LawfulB
           pat.isPrefixOf
             ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) = true := by
     constructor
-    · intro h
-      rcases h with ⟨k', hres, hkfull⟩
-      have hspec :
-          FallbackCandidate pat k k' ∧
-            pat[k']? = some t ∧
-            ∀ l, FallbackCandidate pat k l → pat[l]? = some t → l ≤ k' := by
-        simpa [hres] using
-          (kmpSearchFallback_eval_full_spec (pat := pat) (table := table)
-            hTableLen hprefix t hkPat)
-      rcases hspec with ⟨hCand, hChar, _⟩
+    · intro ⟨k', hres, hkfull⟩
+      obtain ⟨hCand, hChar, _⟩ := by simpa [hres] using
+        kmpSearchFallback_eval_full_spec hTableLen hprefix t hkPat
       have hk'Pat : k' < pat.length := lt_of_le_of_lt (fallbackCandidate_le hCand) hkPat
-      have hlePref : k' + 1 ≤ (pref ++ [t]).length := by
-        have hkPref : k ≤ pref.length := hstate.1
-        have hk'LeK : k' ≤ k := fallbackCandidate_le hCand
-        have hk'Pref : k' ≤ pref.length := le_trans hk'LeK hkPref
-        simpa using Nat.succ_le_succ hk'Pref
+      have hkfull' : pat.length = k' + 1 := by omega
       have hlen : pat.length ≤ (pref ++ [t]).length := by
-        simpa [hkfull] using hlePref
-      have hsucc :
-          pat.take (k' + 1) =
+        simpa [hkfull'] using Nat.succ_le_succ (le_trans (fallbackCandidate_le hCand) hstate.1)
+      have hpatEq : pat = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
+        have hFront : pat.take (k' + 1) =
             (pref ++ [t]).drop ((pref ++ [t]).length - (k' + 1)) :=
-        frontier_extend_of_candidate (hstate := hstate) hCand hk'Pat hChar
-      have hpatEq :
-          pat = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
+          frontier_extend_of_candidate hstate hCand hk'Pat hChar
         calc
-          pat = pat.take (k' + 1) := by simp [hkfull]
-          _ = (pref ++ [t]).drop ((pref ++ [t]).length - (k' + 1)) := hsucc
-          _ = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by
-                simp [hkfull]
-      have hdrop : ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) =
-            (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := by
-        have hle : (pref ++ [t]).length - pat.length ≤ (pref ++ [t]).length := by
-          omega
+          pat = pat.take pat.length := by simp
+          _ = pat.take (k' + 1) := by simp [hkfull']
+          _ = (pref ++ [t]).drop ((pref ++ [t]).length - (k' + 1)) := hFront
+          _ = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) := by simp [hkfull']
+      have hdrop : (pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length) =
+          (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := by
+        have hleDrop : (pref ++ [t]).length - pat.length ≤ (pref ++ [t]).length :=
+          Nat.sub_le _ _
         simpa [List.append_assoc] using
-          (List.drop_append_of_le_length
-            (l₁ := (pref ++ [t])) (l₂ := ts) (i := (pref ++ [t]).length - pat.length) hle)
-      refine ⟨hlen, ?_⟩
-      have hpref : pat <+: ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) := by
-        refine ⟨ts, ?_⟩
+          List.drop_append_of_le_length (l₁ := pref ++ [t]) (l₂ := ts) hleDrop
+      exact ⟨hlen, (List.isPrefixOf_iff_prefix).2 ⟨ts, by
+        have hpatTs : pat ++ ts =
+            (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := by
+          simpa using congrArg (fun l => l ++ ts) hpatEq
         calc
-          pat ++ ts = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := by
-            simpa using congrArg (fun u => u ++ ts) hpatEq
-          _ = ((pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length)) := hdrop.symm
-      exact (List.isPrefixOf_iff_prefix).2 hpref
+          pat ++ ts = (pref ++ [t]).drop ((pref ++ [t]).length - pat.length) ++ ts := hpatTs
+          _ = (pref ++ t :: ts).drop ((pref ++ [t]).length - pat.length) := hdrop.symm⟩⟩
     · intro h
       rcases h with ⟨hlen, hmatch⟩
       have h0 : 0 < pat.length := Nat.zero_lt_of_lt hkPat
