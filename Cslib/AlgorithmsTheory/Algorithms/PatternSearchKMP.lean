@@ -725,24 +725,21 @@ private lemma lpsStep_invariant [BEq α] [LawfulBEq α]
     have hlong' : LongestBorder pat (pos + 1) (Int.toNat (cnd + 1)) := by
       simpa [int_toNat_add_one_eq hcndNonneg] using
         (longestBorder_extend hpos hcndPat hlong hEq)
-    have hres :
-        ∃ hlen : (table.set pos (table[Int.toNat cnd]'hcndTable)).length = pat.length + 1,
-          FailurePrefix pat (table.set pos (table[Int.toNat cnd]'hcndTable))
-            (pos + 1) (by omega) hlen ∧
-          (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
-            Int.toNat ((table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi) < pat.length) ∧
-          (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
-            -1 ≤ (table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi) ∧
-          (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
-            Int.toNat ((table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi + 1) ≤ i) ∧
-          0 ≤ cnd + 1 ∧
-          LongestBorder pat (pos + 1) (Int.toNat (cnd + 1)) := by
-      refine ⟨hlen, hprefix', ?_, ?_, ?_, ?_, hlong'⟩
-      · exact table_set_bound htableBound (htableBound _ hcndTable) hposTable
-      · exact table_set_lower htableLower (htableLower _ hcndTable)
-      · exact table_set_step htableStep hentryStep
-      · omega
-    simpa [hcmp] using hres
+    simpa [hcmp] using
+        (show ∃ hlen : (table.set pos (table[Int.toNat cnd]'hcndTable)).length = pat.length + 1,
+            FailurePrefix pat (table.set pos (table[Int.toNat cnd]'hcndTable))
+              (pos + 1) (by omega) hlen ∧
+            (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
+              Int.toNat ((table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi) < pat.length) ∧
+            (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
+              -1 ≤ (table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi) ∧
+            (∀ (i : Nat) (hi : i < (table.set pos (table[Int.toNat cnd]'hcndTable)).length),
+              Int.toNat ((table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi + 1) ≤ i) ∧
+            0 ≤ cnd + 1 ∧
+            LongestBorder pat (pos + 1) (Int.toNat (cnd + 1)) from
+          ⟨hlen, ⟨hprefix', table_set_bound htableBound (htableBound _ hcndTable) hposTable,
+            table_set_lower htableLower (htableLower _ hcndTable),
+            table_set_step htableStep hentryStep, by omega, hlong'⟩⟩)
   · have hMis : pat[pos]'hpos ≠ pat[Int.toNat cnd]'hcndPat := fun hEq => hcmp (by simp [hEq])
     have hentry : FailureEntry pat pos hpos cnd := by
       simpa [show ((Int.toNat cnd : Nat) : Int) = cnd by omega] using
