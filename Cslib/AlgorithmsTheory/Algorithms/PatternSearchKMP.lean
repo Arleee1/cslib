@@ -465,30 +465,28 @@ private lemma failure_of_longest_mismatch [BEq α] {pat : List α} {pos c : Nat}
 
 private lemma failureEntry_zero [BEq α] {pat : List α} (h0 : 0 < pat.length) :
     FailureEntry pat 0 h0 (-1) := by
-  simpa [FailureEntry, dif_pos (by decide : (-1 : Int) < 0)] using
-    (fun l (hl : Border pat 0 l) => absurd hl.1 (Nat.not_lt_zero _))
+  grind [FailureEntry, Border]
 
 private lemma failureEntry_target_lt [BEq α] {pat : List α} {k : Nat} {hk : k < pat.length}
     {v : Int} (hv : FailureEntry pat k hk v) (hnonneg : 0 ≤ v) :
     Int.toNat v < k := by
-  obtain ⟨hn, _⟩ := by simpa [FailureEntry, show ¬ v < 0 by omega] using hv
-  exact hn.1.1
+  grind [FailureEntry, Border]
 
 private lemma longestBorder_one {pat : List α} :
-    LongestBorder pat 1 0 :=
-  ⟨border_zero (Nat.succ_pos _), fun _ hl => Nat.le_of_lt_succ hl.1⟩
+    LongestBorder pat 1 0 := by
+  grind [LongestBorder, border_zero, Border]
 
 private lemma longestBorder_to_matchingFrontier {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hlong : LongestBorder pat n l) :
-    MatchingFrontier pat n hn l :=
-  ⟨hlong.1, fun l' hl' _ => hlong.2 l' hl'⟩
+    MatchingFrontier pat n hn l := by
+  grind [MatchingFrontier, LongestBorder]
 
 private lemma matchingFrontier_to_best [BEq α] {pat : List α} {n l : Nat}
     (hn : n < pat.length) (hl : l < pat.length)
     (hfront : MatchingFrontier pat n hn l)
     (hcmp : pat[n]'hn = pat[l]'hl) :
-    BestMatchingBorder pat n hn l :=
-  ⟨hfront.1, by simpa using hcmp, hfront.2⟩
+    BestMatchingBorder pat n hn l := by
+  grind [BestMatchingBorder, MatchingFrontier]
 
 private lemma no_matching_of_failure_neg [BEq α] {pat : List α} {pos c : Nat} {v : Int}
     (hpos : pos < pat.length)
@@ -1342,9 +1340,7 @@ private def FrontierState (pat pref : List α) (k : Nat) : Prop :=
 private lemma fallbackCandidate_le {pat : List α} {k l : Nat}
     (hCand : FallbackCandidate pat k l) :
     l ≤ k := by
-  rcases hCand with rfl | hBorder
-  · rfl
-  · exact hBorder.1.le
+  grind [FallbackCandidate, Border]
 
 private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
     (hl : l < pat.length) (hlPref : l ≤ pref.length) :
