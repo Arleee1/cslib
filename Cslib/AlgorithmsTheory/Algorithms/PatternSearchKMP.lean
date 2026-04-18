@@ -1124,11 +1124,10 @@ private lemma failureEntry_of_table_get? [BEq α]
     failurePrefix_entry_at hTableLen hprefix hk
 
 private lemma beq_false_of_same_getElem? [BEq α] [LawfulBEq α]
-    {xs : List α} {i : Nat} (hi : i < xs.length)
+    {xs : List α} {i : Nat}
     {a b : α} (hneq : ¬ a == b)
-    (ha : xs[i]? = some a) (hb : xs[i]? = some b) : False :=
-  hneq (by simp [(getElem_eq_of_getElem?_eq_some hi ha).symm.trans
-    (getElem_eq_of_getElem?_eq_some hi hb)])
+    (ha : xs[i]? = some a) (hb : xs[i]? = some b) : False := by
+  grind [getElem_eq_of_getElem?_eq_some]
 
 private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
   {pat : List α} {table : List Int}
@@ -1210,7 +1209,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
                       · exfalso
                         cases hEqL
                         exact False.elim
-                          (beq_false_of_same_getElem? (xs := pat) hk hcmp hpk hCharL)
+                          (beq_false_of_same_getElem? (xs := pat) hcmp hpk hCharL)
                       · have hl : l < pat.length := (List.getElem?_eq_some_iff.mp hCharL).1
                         have hEqL : pat[l]'(lt_trans hBorderL.1 hk) = t :=
                           getElem_eq_of_getElem?_eq_some
@@ -1256,7 +1255,7 @@ private lemma kmpSearchFallback_eval_full_spec [BEq α] [LawfulBEq α]
               · exfalso
                 cases hEqL
                 exact False.elim
-                  (beq_false_of_same_getElem? (xs := pat) hk hcmp hpk hCharL)
+                  (beq_false_of_same_getElem? (xs := pat) hcmp hpk hCharL)
               · cases hnext : table[k]? with
                 | none =>
                     exfalso
