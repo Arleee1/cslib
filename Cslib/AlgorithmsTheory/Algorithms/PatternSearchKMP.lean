@@ -209,8 +209,7 @@ private lemma initTable0_bound (pat : List α) (h : 0 < pat.length) :
     (∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi) < pat.length) ∧
     (∀ (i : Nat) (hi : i < table0.length), -1 ≤ table0[i]'hi) ∧
     (∀ (i : Nat) (hi : i < table0.length), Int.toNat (table0[i]'hi + 1) ≤ i) ∧
-    table0.length = pat.length + 1 := by
-  refine ⟨?_, ?_, ?_, by simp⟩ <;> (intro i hi; cases i <;> simp [h])
+    table0.length = pat.length + 1 := by grind
 
 private lemma int_toNat_add_one_eq {z : Int} (hz : 0 ≤ z) :
   Int.toNat (z + 1) = Int.toNat z + 1 := by omega
@@ -223,7 +222,7 @@ private lemma nextCnd_pat_table_bounds
       Int.toNat (table[i]'hi) < pat.length) :
     let nextCnd := table[(Int.toNat cnd)]'hcndTable
     Int.toNat nextCnd < pat.length ∧ Int.toNat nextCnd < table.length :=
-  ⟨htableBound _ hcndTable, by have := htableBound _ hcndTable; omega⟩
+  ⟨htableBound _ hcndTable, by grind⟩
 
 private lemma innerLPSWhile_time_eval_sum_zero_negOne [BEq α]
     (fuel pos : Nat) (pat : List α) (table : List Int)
@@ -294,35 +293,27 @@ private lemma innerLPSWhile_eval_bounds [BEq α]
 /-- Helper: `List.set` preserves table bounds. -/
 private lemma table_set_bound {pat : List α} {table : List Int} {pos : Nat} {v : Int}
     (htableBound : ∀ (i : Nat) (hi : i < table.length), Int.toNat (table[i]'hi) < pat.length)
-    (hv : Int.toNat v < pat.length) (hpos : pos < table.length)
+  (hv : Int.toNat v < pat.length)
     (i : Nat) (hi : i < (table.set pos v).length) :
-    Int.toNat ((table.set pos v)[i]'hi) < pat.length := by
-  simp only [List.length_set] at hi
-  by_cases heq : i = pos
-  · subst heq; simpa using hv
-  · rw [List.getElem_set_of_ne (by omega)]; exact htableBound i (by omega)
+    Int.toNat ((table.set pos v)[i]'hi) < pat.length := by grind
 
 /-- Helper: `List.set` preserves lower bounds. -/
 private lemma table_set_lower {table : List Int} {pos : Nat} {v : Int}
     (htableLower : ∀ (i : Nat) (hi : i < table.length), -1 ≤ table[i]'hi)
     (hv : -1 ≤ v)
     (i : Nat) (hi : i < (table.set pos v).length) :
-    -1 ≤ (table.set pos v)[i]'hi := by
-  simp only [List.length_set] at hi
-  by_cases heq : i = pos
-  · subst heq; simpa using hv
-  · rw [List.getElem_set_of_ne (by omega)]; exact htableLower i (by omega)
+    -1 ≤ (table.set pos v)[i]'hi := by grind
+  -- simp only [List.length_set] at hi
+  -- by_cases heq : i = pos
+  -- · subst heq; simpa using hv
+  -- · rw [List.getElem_set_of_ne (by omega)]; exact htableLower i (by omega)
 
 /-- Helper: `List.set` preserves the step invariant. -/
 private lemma table_set_step {table : List Int} {pos : Nat} {v : Int}
     (htableStep : ∀ (i : Nat) (hi : i < table.length), Int.toNat (table[i]'hi + 1) ≤ i)
     (hv : Int.toNat (v + 1) ≤ pos)
     (i : Nat) (hi : i < (table.set pos v).length) :
-    Int.toNat ((table.set pos v)[i]'hi + 1) ≤ i := by
-  simp only [List.length_set] at hi
-  by_cases heq : i = pos
-  · subst heq; simpa using hv
-  · rw [List.getElem_set_of_ne (by omega)]; exact htableStep i (by omega)
+    Int.toNat ((table.set pos v)[i]'hi + 1) ≤ i := by grind
 
 
 section Correctness
@@ -707,7 +698,6 @@ private lemma lpsStep_invariant [BEq α] [LawfulBEq α]
       0 ≤ nextCnd ∧
       LongestBorder pat (pos + 1) (Int.toNat nextCnd) := by
   dsimp [lpsStepEntry, lpsStepFallback]
-  have hposTable : pos < table.length := by omega
   have hcndPos : Int.toNat cnd < pos := hlong.1.1
   have hfront : MatchingFrontier pat pos hpos (Int.toNat cnd) :=
     longestBorder_to_matchingFrontier hpos hlong
@@ -737,7 +727,7 @@ private lemma lpsStep_invariant [BEq α] [LawfulBEq α]
               Int.toNat ((table.set pos (table[Int.toNat cnd]'hcndTable))[i]'hi + 1) ≤ i) ∧
             0 ≤ cnd + 1 ∧
             LongestBorder pat (pos + 1) (Int.toNat (cnd + 1)) from
-          ⟨hlen, ⟨hprefix', table_set_bound htableBound (htableBound _ hcndTable) hposTable,
+          ⟨hlen, ⟨hprefix', table_set_bound htableBound (htableBound _ hcndTable),
             table_set_lower htableLower (htableLower _ hcndTable),
             table_set_step htableStep hentryStep, by omega, hlong'⟩⟩)
   · have hMis : pat[pos]'hpos ≠ pat[Int.toNat cnd]'hcndPat := fun hEq => hcmp (by simp [hEq])
@@ -754,7 +744,7 @@ private lemma lpsStep_invariant [BEq α] [LawfulBEq α]
         ∀ (i : Nat) (hi : i < (table.set pos cnd).length),
           Int.toNat ((table.set pos cnd)[i]'hi) < pat.length :=
       table_set_bound (table := table) (pos := pos) (v := cnd)
-        htableBound hcndPat hposTable
+        htableBound hcndPat
     have hlower' :
         ∀ (i : Nat) (hi : i < (table.set pos cnd).length),
           -1 ≤ (table.set pos cnd)[i]'hi :=
@@ -1813,7 +1803,6 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
     simp +zetaDelta only [FreeM.lift_def, FreeM.pure_eq_pure, FreeM.pure_bind',
       FreeM.bind_eq_bind, FreeM.liftBind_bind, FreeM.pure_bind, Prog.time_liftBind,
       Comparison.natCost_cost, Comparison.natCost_evalQuery]
-    have hposTable : pos < table.length := by omega
     have hcndSucc := int_toNat_add_one_eq hcndNonneg
     have hcndLePos : Int.toNat cnd ≤ pos := by omega
     split_ifs with hcmp hpos' hcndPat'
@@ -1822,7 +1811,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
         le_trans (htableStep (Int.toNat cnd) hcndTable) hcndLePos
       have hrec := ih (pos + 1) (cnd + 1) (table.set pos table[cnd.toNat]) hpos' hcndPat'
         (by simp only [List.length_set]; omega) (by rw [List.length_set, htableLen])
-        (table_set_bound htableBound (htableBound _ hcndTable) hposTable)
+        (table_set_bound htableBound (htableBound _ hcndTable))
         (by omega) (by rw [int_toNat_add_one_eq (by omega), hcndSucc]; omega)
         (table_set_lower htableLower (htableLower _ hcndTable))
         (table_set_step htableStep hentryStep)
@@ -1876,7 +1865,7 @@ private lemma LPSWhile_time_complexity_upper_bound [BEq α]
         have hrec := ih (pos + 1) (inner.eval Comparison.natCost + 1)
           (table.set pos cnd) hpos_next hcndPat_rec
           (by simp only [List.length_set]; omega) (by rw [List.length_set, htableLen])
-          (table_set_bound htableBound hcndPat hposTable) hnextNonneg hnextStep
+          (table_set_bound htableBound hcndPat) hnextNonneg hnextStep
           (table_set_lower htableLower (by omega))
           (table_set_step htableStep hcndStep)
         omega
