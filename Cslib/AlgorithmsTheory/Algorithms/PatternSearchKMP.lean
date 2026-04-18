@@ -213,8 +213,7 @@ private lemma initTable0_bound (pat : List α) (h : 0 < pat.length) :
   refine ⟨?_, ?_, ?_, by simp⟩ <;> (intro i hi; cases i <;> simp [h])
 
 private lemma int_toNat_add_one_eq {z : Int} (hz : 0 ≤ z) :
-    Int.toNat (z + 1) = Int.toNat z + 1 := by
-  omega
+  Int.toNat (z + 1) = Int.toNat z + 1 := by omega
 
 private lemma nextCnd_pat_table_bounds
     {pat : List α} {table : List Int} {cnd : Int}
@@ -551,8 +550,8 @@ private lemma initial_failurePrefix [BEq α] {pat : List α} (h0 : 0 < pat.lengt
     FailurePrefix pat (-1 :: List.replicate pat.length 0) 1 (by omega)
       (show (-1 :: List.replicate pat.length 0 : List Int).length = pat.length + 1 by simp) := by
   intro i hi
-  have hi0 : i = 0 := by omega
-  subst hi0
+  have : i = 0 := by omega
+  subst this
   simpa using (failureEntry_zero (pat := pat) h0)
 
 private lemma innerLPSWhile_eval_frontier [BEq α] [LawfulBEq α]
@@ -1101,8 +1100,8 @@ private lemma kmpSearchPositionsAux_eval_append_acc [BEq α]
   | cons t ts ih =>
       cases hmatched : (kmpSearchFallback table.length t k pat table).eval Comparison.natCost with
       | none =>
-          rw [kmpSearchPositionsAux_eval_cons t ts j k pat table accRev]
-          rw [kmpSearchPositionsAux_eval_cons t ts j k pat table ([] : List Nat)]
+          rw [kmpSearchPositionsAux_eval_cons t ts j k pat table accRev,
+            kmpSearchPositionsAux_eval_cons t ts j k pat table ([] : List Nat)]
           simpa [hmatched] using ih (j := j + 1) (k := 0) (accRev := accRev)
       | some k' =>
           by_cases hnext : k' + 1 = pat.length
@@ -1135,8 +1134,8 @@ private lemma failurePrefix_entry_at [BEq α]
 private lemma getElem_eq_of_getElem?_eq_some
     {xs : List α} {i : Nat} (hi : i < xs.length) {x : α}
     (h : xs[i]? = some x) :
-    xs[i]'hi = x :=
-  Option.some.inj (by rw [← List.getElem?_eq_getElem hi, h])
+    xs[i]'hi = x := by
+  simpa [List.getElem?_eq_getElem hi] using h
 
 private lemma failureEntry_of_table_get? [BEq α]
     {pat : List α} {table : List Int}
@@ -1361,7 +1360,7 @@ private lemma fallbackCandidate_le {pat : List α} {k l : Nat}
     (hCand : FallbackCandidate pat k l) :
     l ≤ k := by
   rcases hCand with rfl | hBorder
-  · exact le_refl _
+  · rfl
   · exact hBorder.1.le
 
 private lemma suffix_succ_iff {pat pref : List α} {l : Nat} {t : α}
@@ -1932,15 +1931,15 @@ theorem buildLPS_time_complexity_upper_bound [BEq α]
     cases xs with
     | nil => simp [buildLPS]
     | cons y xs =>
-          let pat' := x :: y :: xs
-          let table0 : List Int := -1 :: List.replicate pat'.length 0
-          rcases initTable0_bound pat' (by simp [pat']) with
-            ⟨htableBound, htableLower, htableStep, _⟩
-          simpa [buildLPS, pat', table0] using
-            LPSWhile_time_complexity_upper_bound (pat'.length - 1) 1 0 pat' table0
-              (by simp [pat']) (by simp [pat']) (by simp [pat', table0])
-              (by simp [pat', table0]) htableBound (by omega) (by simp)
-              htableLower htableStep
+      let pat' := x :: y :: xs
+      let table0 : List Int := -1 :: List.replicate pat'.length 0
+      rcases initTable0_bound pat' (by simp [pat']) with
+        ⟨htableBound, htableLower, htableStep, _⟩
+      simpa [buildLPS, pat', table0] using
+        LPSWhile_time_complexity_upper_bound (pat'.length - 1) 1 0 pat' table0
+          (by simp [pat']) (by simp [pat']) (by simp [pat', table0])
+          (by simp [pat', table0]) htableBound (by omega) (by simp)
+          htableLower htableStep
 
 
 private def fallbackPotential : Option Nat → Nat
